@@ -104,7 +104,7 @@ def test_a_rerun_scores_only_what_changed(chats, cfg):
 
 
 def test_excluded_and_archived_chats_are_never_scored(chats, cfg):
-    p = chat(cfg, "c-x", "secret health thing", ["about my knee surgery recovery plan"], created="2025-08-05")
+    p = chat(cfg, "c-x", "secret health thing", ["about my made up dentist appointment"], created="2025-08-05")
     meta_text = p.read_text(encoding="utf-8").replace("tags: [chat]", "excluded: junk\ntags: [chat]")
     p.write_text(meta_text, encoding="utf-8")
     write(cfg.vault, "4 Archive/chats-excluded/sam/2025-08-01 x (abc).md", "made up\n")
@@ -112,7 +112,7 @@ def test_excluded_and_archived_chats_are_never_scored(chats, cfg):
     model = Model()
     filt.run(cfg, cap_usd=1.0, runner=model, now=NOW)
     prompt = "".join(c[1] for c in model.calls)
-    assert "knee surgery" not in prompt
+    assert "dentist appointment" not in prompt
     assert "vim keys" not in prompt          # the excluded topic never reaches the model
     assert "lora rank sweep" in prompt
 
