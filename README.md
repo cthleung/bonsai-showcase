@@ -61,3 +61,7 @@ To point it at a real vault, copy `.env.example` to `.env` and set `BONSAI_VAULT
 - A personality for the thing that talks to you. Interacting with a stiff corporate machine is exhausting, and I think the world needs more kindness and care, and the first place to start in an AI world are the AI systems. It can be soulful without anyone treating it as sentient (and it should feel fun and a little silly, like how Windows XP felt back in the day).
 
 The name comes from the bonsai philosophy I try to live by: with care and attention, even ordinary things can become extraordinary, and wonderful things are the product of many small, intentional decisions over time. Which, now that I think about it, is actually a pretty good description of a memory too.
+
+## License
+
+There isn't one, on purpose: you're welcome to read the code and borrow ideas, but all rights are reserved, so please don't copy it into your own projects. The one exception is the bit of the ChatGPT export parser that's ported from an MIT project, which keeps its own license (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
