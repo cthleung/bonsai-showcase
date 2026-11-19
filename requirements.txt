@@ -1,0 +1,4 @@
+pytest
+pyyaml
+websockets
+sqlite-vec==0.1.9
