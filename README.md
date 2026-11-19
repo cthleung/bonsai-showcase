@@ -2,7 +2,7 @@
 
 A personal context store: one plain markdown vault of notes, memories and captured AI chats that you and every agent you use can read and write, on every device, plus the nightly jobs that keep it tidy and slowly learn who you are.
 
-This is a showcase copy of the code I run every day. The parts that only make sense for my own setup (and a couple of capture scripts that poke at other companies' private endpoints) stay in my private repo, so think of this as the core of the thing, not a product you can install and forget about. Not yet, anyway.
+This is a showcase copy of the code I run every day. The parts that only make sense for my own setup (plus a couple of capture scripts that get shy in public) stay in my private repo, so think of this as the core of the thing, not a product you can install and forget about. Not yet, anyway.
 
 ## Why I built it
 
