@@ -21,10 +21,10 @@ So it's got to live somewhere you own, in a format any agent can read, and with 
 | Tier | What's there | What it does |
 |---|---|---|
 | **Edge** | My laptop, and the agents running on my PC (Claude Code, Codex, Copilot) | Reads context, writes notes to its own inbox folder. Runs no jobs. |
-| **Private compute** | My PC today, a NAS later | Capture, the search index, the nightly dream job, reflection, and later the gateway. Raw material only ever gets processed here. |
+| **Private compute** | My PC today, a NAS later | Capture, the search index, the gateway, the nightly dream job and reflection. Raw material only ever gets processed here. |
 | **Cloud** | Google Drive (where the vault syncs), cloud agents like ChatGPT | Drive stores the vault. Cloud agents get answers, never raw material. |
 
-The edge is where you work, so it's kept light. Private compute is where your raw history lives and gets read, because years of personal chats shouldn't be shipped off to whoever asks. And the cloud is really useful, but it only gets the smallest slice it needs. The plan is a gateway on the private compute tier with one door, `ask(question, purpose)`, that searches locally and hands back a short answer with citations (like Perplexity, but for personal indexing instead of the web). Your own trusted agents get raw search and read; everyone else gets answers.
+The edge is where you work, so it's kept light. Private compute is where your raw history lives and gets read, because years of personal chats shouldn't be shipped off to whoever asks. And the cloud is really useful, but it only gets the smallest slice it needs. The gateway on the private compute tier is what decides who gets what. Your own trusted agents already get raw search and read through it, and everyone else will get one door, `ask(question, purpose)`, that searches locally and hands back a short answer with citations (like Perplexity, but for personal indexing instead of the web). That door is still to come.
 
 ## What's in here
 
@@ -35,6 +35,7 @@ The edge is where you work, so it's kept light. Private compute is where your ra
   - Every claim carries a verbatim quote, and **a script** checks the quote really is in your turn of that chat. Models invent a lot of claims about people and their self-checks don't catch it, so the checking is done by code, by a separate cold fact-checker, and by you.
   - Interpretations need two or more separate chats, can't name a motive or a feeling, and never promote themselves to facts. They come back to you as questions instead.
 - **Hybrid search** (`index/`) uses SQLite FTS5 (plus a trigram table for Chinese, Japanese and Korean) and sqlite-vec vectors, with a local embedding model and reranker served by llama.cpp. The index lives outside the vault, so it's fine to delete it and rebuild it whenever.
+- **The gateway** (`gateway/`) is a read-only MCP server with three tools, `search`, `read_note` and `recent`, so Claude Code (or any MCP client) in any project can search the vault. It uses the index's own off-limits rules, so an agent can read exactly what's indexed and nothing else, and a refusal never says whether a note exists. It only takes settings from its own env file, so the project it's started from can't repoint it.
 - **Vault helpers** (`vault/`) make the PARA folders and templates, and rebuilds a one-line-per-note `Index.md` that agents can load at the start of a session.
 
 The vault itself is just an Obsidian folder of markdown, and grep is always enough to find things. The note format is in [docs/note-format.md](docs/note-format.md).
@@ -53,9 +54,15 @@ So the demo just copies a small sample vault to a temp folder, runs the night jo
 
 To point it at a real vault, copy `.env.example` to `.env` and set `BONSAI_VAULT` and `BONSAI_STATE`. The night job and reflection need the `claude` CLI; search needs `llama-server` and a GPU with room for the embedding model.
 
+To hook the gateway up to Claude Code (the paths in that `.env` have to be absolute, no `~`):
+
+```bash
+claude mcp add bonsai --scope user -- /path/to/venv/bin/python -I /path/to/bonsai/gateway/__main__.py --env-file /path/to/bonsai/.env
+```
+
 ## Where it's going
 
-- The `ask` gateway on the PC, then as a connector for ChatGPT and other cloud agents.
+- The `ask(question, purpose)` door on the gateway, then as a connector for ChatGPT and other cloud agents.
 - Moving private compute onto an always-on NAS.
 - Voice: answering the week's reflection questions on the drive home.
 - A personality for the thing that talks to you. Interacting with a stiff corporate machine is exhausting, and I think the world needs more kindness and care, and the first place to start in an AI world are the AI systems. It can be soulful without anyone treating it as sentient (and it should feel fun and a little silly, like how Windows XP felt back in the day).
