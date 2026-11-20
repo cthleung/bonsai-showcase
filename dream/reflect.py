@@ -316,33 +316,64 @@ def long_enough(q: str) -> bool:
     return len(re.findall(r"\w+", q)) >= MIN_QUOTE_WORDS or len(_CJK_RX.findall(q)) >= MIN_QUOTE_CJK
 
 
+# A letter or digit that isn't CJK. CJK writing has no spaces between words, so a CJK neighbour
+# counts as a word edge and `Rust写代码` matches inside `我用Rust写代码`.
+_NON_CJK_WORD = r"(?!" + _CJK_RX.pattern + r")\w"
+
+
+def _needs_edge(ch: str) -> bool:
+    return bool(re.match(r"\w", ch)) and not _CJK_RX.match(ch)
+
+
+def _piece_rx(piece: str) -> re.Pattern:
+    """`piece` (already normalized) with a word edge at each end that starts or stops on a
+    non-CJK letter, so `like tomatoes` can't match inside `dislike tomatoes`."""
+    head = r"(?<!" + _NON_CJK_WORD + r")" if _needs_edge(piece[0]) else ""
+    tail = r"(?!" + _NON_CJK_WORD + r")" if _needs_edge(piece[-1]) else ""
+    return re.compile(head + re.escape(piece) + tail)
+
+
+def quote_pieces(quote: str) -> tuple[list[str], str]:
+    """(the quote's pieces, normalized, or [] and why the quote can't be checked). An ellipsis
+    splits a quote into pieces, each MIN_FRAGMENT_WORDS words or more."""
+    q = clean_quote(quote)
+    if not q:
+        return [], "empty quote"
+    if not long_enough(_ELLIPSIS_RX.sub(" ", q)):
+        return [], "quote too short"
+    pieces = [p.strip() for p in _ELLIPSIS_RX.split(q)]
+    pieces = [p for p in pieces if p]
+    if len(pieces) > 1 and any(len(re.findall(r"\w+", p)) < MIN_FRAGMENT_WORDS
+                               and len(_CJK_RX.findall(p)) < MIN_QUOTE_CJK for p in pieces):
+        return [], "quote piece too short around an ellipsis"
+    return [norm(p) for p in pieces], ""
+
+
+def pieces_in(pieces: list[str], hay: str) -> bool:
+    """True when every piece is in `hay` (normalized), in order, each with word edges. The one
+    matcher behind the quote check, the question check and the writing-ban exemption."""
+    pos = 0
+    for w in pieces:
+        if not w:
+            return False
+        m = _piece_rx(w).search(hay, pos)
+        if not m:
+            return False
+        pos = m.end()
+    return bool(pieces)
+
+
 def find_quote(quote: str, chat: ChatDoc) -> tuple[Turn | None, str]:
     """(the turn the quote is in, why not). An ellipsis splits the quote into pieces that must all
     be in the same turn, in order, each MIN_FRAGMENT_WORDS words or more. A chat whose turns can't
     be told apart for sure (common/turns.py) gives no quotes at all."""
     if chat.ambiguous:
         return None, "that chat's turns can't be told apart for sure"
-    q = clean_quote(quote)
-    if not q:
-        return None, "empty quote"
-    if not long_enough(_ELLIPSIS_RX.sub(" ", q)):
-        return None, "quote too short"
-    pieces = [p.strip() for p in _ELLIPSIS_RX.split(q)]
-    pieces = [p for p in pieces if p]
-    if len(pieces) > 1 and any(len(re.findall(r"\w+", p)) < MIN_FRAGMENT_WORDS
-                               and len(_CJK_RX.findall(p)) < MIN_QUOTE_CJK for p in pieces):
-        return None, "quote piece too short around an ellipsis"
-    wanted = [norm(p) for p in pieces]
+    wanted, why = quote_pieces(quote)
+    if not wanted:
+        return None, why
     for t in chat.turns:
-        hay = norm(t.text)
-        pos, ok = 0, True
-        for w in wanted:
-            i = hay.find(w, pos)
-            if i < 0:
-                ok = False
-                break
-            pos = i + len(w)
-        if ok:
+        if pieces_in(wanted, norm(t.text)):
             return t, ""
     return None, "not found in a You turn of that chat"
 
@@ -479,13 +510,13 @@ def check_claims(raw: dict, month: str, chats: list[ChatDoc], rejected: list[str
             if t:
                 why = "an excluded topic"
         if not why:
-            vis = {by_key[k].visibility for k in by_key if by_key[k].rel in claim.chats}
-            claim.visibility = vis.pop() if len(vis) == 1 else "private"
+            claim.visibility = chats_visibility(claim.chats, chats)
             claim.text = name_chats(propose.tidy(claim.text).replace("\n", " "), by_key)
             key = norm(claim.text) + "|" + claim.kind
             if key in seen:   # the same claim twice: one claim, both sets of quotes
                 old = seen[key]
                 old.quotes += [q for q in claim.quotes if q not in old.quotes]
+                old.visibility = chats_visibility(old.chats, chats)   # from every chat it now quotes
                 counts["merged repeats"] += 1
                 continue
             seen[key] = claim
@@ -700,7 +731,8 @@ def check_question(item: dict, cands: dict[str, Claim]) -> tuple[dict | None, st
         return None, "doesn't quote the user"
     pool = [norm(q["quote"]) for g in based for q in cands[g].quotes]
     for s in spans:
-        if not any(norm(clean_quote(s)) in p for p in pool) or not clean_quote(s):
+        pieces, _ = quote_pieces(s)
+        if not pieces or not any(pieces_in(pieces, p) for p in pool):
             return None, "a quote isn't one of the checked quotes"
     outside = _QUOTE_SPAN_RX.sub(" ", text)
     if FEELING_RX.search(outside):
@@ -714,7 +746,8 @@ def check_question(item: dict, cands: dict[str, Claim]) -> tuple[dict | None, st
         return None, "breaks the writing rules: " + ", ".join(hits)
     return {"kind": kind, "based_on": based, "text": fixed,
             "stems": list(dict.fromkeys(s for g in based for s in cands[g].stems)),
-            "months": sorted({cands[g].month for g in based})}, ""
+            "months": sorted({cands[g].month for g in based}),
+            "visibility": visibility([cands[g] for g in based])}, ""
 
 
 def pick_questions(raw: dict, cands: dict[str, Claim]) -> tuple[list[dict], list[str]]:
@@ -777,15 +810,31 @@ def heading_of(c: Claim) -> str:
     return c.kind if c.kind in ("said", "did", "told", "interpretation") else "open"
 
 
-def visibility(claims: list[Claim]) -> str:
-    vis = {c.visibility for c in claims}
+def combine_visibility(values) -> str:
+    """One visibility for things drawn from several sources: their shared value, or private when
+    they differ or there are none (private wins)."""
+    vis = {v or "private" for v in values}
     return vis.pop() if len(vis) == 1 else "private"
+
+
+def visibility(claims: list[Claim]) -> str:
+    return combine_visibility(c.visibility for c in claims)
+
+
+def chats_visibility(rels, chats: list[ChatDoc]) -> str:
+    """The visibility of a claim quoting the chats in `rels`, from every one of them."""
+    rels = set(rels)
+    return combine_visibility(c.visibility for c in chats if c.rel in rels)
 
 
 def render_diary(month: str, claims: list[Claim], n_chats: int, today: str,
                  questions: list[dict] | None = None) -> tuple[dict, str]:
+    """A question can quote another month's chats, so it carries the visibility of the claims it's
+    based on (check_question), and the entry's visibility covers its questions too."""
+    mine = [q for q in questions or [] if month in q.get("months", [])]
+    vis = [c.visibility for c in claims] + [q.get("visibility") or "private" for q in mine]
     meta = {"title": f"Profile diary {month}", "date": month_end(month), "type": "profile-diary",
-            "source": "agent", "learned": today, "visibility": visibility(claims) if claims else "private",
+            "source": "agent", "learned": today, "visibility": combine_visibility(vis),
             "tags": ["profile", "diary", "spike"]}
     body = [f"# Profile diary, {month}\n\n",
             f"Replay entry for {month}, written {today} by the profile spike from {n_chats} of your chats "
@@ -803,7 +852,6 @@ def render_diary(month: str, claims: list[Claim], n_chats: int, today: str,
         for c in sorted(rows, key=lambda c: (c.date, c.id)):
             body.append(f"- [{claim_label(c)}] {c.text} ({', '.join(link(s) for s in c.stems)}, {c.date})\n")
             body.append(quote_lines(c))
-    mine = [q for q in questions or [] if month in q.get("months", [])]
     body.append("\n## Questions\n\n")
     if not mine:
         body.append(f"None from {month}. The gist next to this note has the questions for the whole run.\n")
