@@ -72,7 +72,6 @@ score, 0 to 10:
 - 7 to 10: the user says things about themself: their goals, choices, working rules, likes and
   dislikes, background or history.
 whose: user, other (a person from the People notes, or clearly not the user), or unclear.
-A chat marked "checked by the user as theirs" is user.
 reason: one short line naming what decided it (a topic, a phrase).
 
 Only the user's side of each chat is shown (the "You" turns, trimmed); the answers are left out.
@@ -133,19 +132,101 @@ def exclude_topics(state: Path) -> list[str]:
         return []
     out = []
     for line in path.read_text(encoding="utf-8-sig").splitlines():
-        line = line.split("#", 1)[0].strip()
+        line = " ".join(line.split("#", 1)[0].split())
         if line:
             out.append(line.lower())
     return out
 
 
 def excluded_topic(text: str, topics: list[str]) -> str | None:
-    """The first excluded topic found in `text` (whole words, any case), or None."""
-    low = text.lower()
+    """The first excluded topic found in `text` (whole words, any case, whitespace collapsed on
+    both sides so a topic wrapped over two lines still counts), or None."""
+    if not topics:
+        return None
+    low = " ".join(text.split()).lower()
     for t in topics:
-        if re.search(r"(?<!\w)" + re.escape(t) + r"(?!\w)", low):
+        t = " ".join(t.split()).lower()
+        if t and re.search(r"(?<!\w)" + re.escape(t) + r"(?!\w)", low):
             return t
     return None
+
+
+_HEADING_RX = re.compile(r"^(#{1,6})\s")
+_BULLET_RX = re.compile(r"^(\s*)(?:[-*+]|\d+[.)])\s")
+_FENCE_RX = re.compile(r"^\s*(```|~~~)")
+
+
+def _plain(line: str) -> bool:
+    """A line that carries on the block above it (not blank, not a heading, bullet or fence)."""
+    return bool(line.strip()) and not (_HEADING_RX.match(line) or _BULLET_RX.match(line)
+                                       or _FENCE_RX.match(line))
+
+
+def _blocks(text: str) -> list[tuple[str, int, list[str]]]:
+    """Split markdown into (kind, level, lines): "heading" (level 1 to 6), "bullet" (its indent;
+    the bullet line plus the plain lines after it), "para" (its indent; a run of plain lines, or a
+    whole fenced code block) and "blank"."""
+    out: list[tuple[str, int, list[str]]] = []
+    lines = text.split("\n")
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        indent = len(line.expandtabs(4)) - len(line.expandtabs(4).lstrip())
+        fence = _FENCE_RX.match(line)
+        if fence:
+            j = i + 1
+            while j < len(lines) and not lines[j].strip().startswith(fence.group(1)):
+                j += 1
+            out.append(("para", indent, lines[i:j + 1]))
+            i = j + 1
+            continue
+        if not line.strip():
+            out.append(("blank", 0, [line]))
+            i += 1
+            continue
+        heading = _HEADING_RX.match(line)
+        if heading:
+            out.append(("heading", len(heading.group(1)), [line]))
+            i += 1
+            continue
+        j = i + 1
+        while j < len(lines) and _plain(lines[j]):
+            j += 1
+        out.append(("bullet" if _BULLET_RX.match(line) else "para", indent, lines[i:j]))
+        i = j
+    return out
+
+
+def redact_topics(text: str, topics: list[str]) -> str:
+    """`text` (markdown) with the excluded topics taken out, for notes that go into a prompt: a
+    bullet or paragraph that names a topic is dropped (a bullet with its indented sub-items), and a
+    heading that names one is dropped with everything under it, up to the next heading of the same
+    or a higher level. Everything else stays as it was. Call it before any length cut, so a cut
+    never decides what's left."""
+    if not excluded_topic(text, topics):
+        return text
+    blocks = _blocks(text)
+    keep: list[str] = []
+    i = 0
+    while i < len(blocks):
+        kind, level, lines = blocks[i]
+        i += 1
+        if kind == "blank" or not excluded_topic("\n".join(lines), topics):
+            keep += lines
+            continue
+        if kind == "heading":
+            while i < len(blocks) and not (blocks[i][0] == "heading" and blocks[i][1] <= level):
+                i += 1
+        elif kind == "bullet":
+            while True:   # its sub-items: blocks indented deeper, with any blank lines between
+                j = i
+                while j < len(blocks) and blocks[j][0] == "blank":
+                    j += 1
+                if j < len(blocks) and blocks[j][0] in ("bullet", "para") and blocks[j][1] > level:
+                    i = j + 1
+                else:
+                    break
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(keep))
 
 
 def chat_hash(meta: dict, body: str) -> str:
@@ -196,10 +277,11 @@ def chat_files(vault: Path) -> list[Path]:
     return sorted(p for p in root.rglob("*.md") if p.is_file() and not p.name.startswith("."))
 
 
-def vault_context(vault) -> str:
+def vault_context(vault, topics: list[str] | None = None) -> str:
     """What the user has told the vault about themself and the people in their chats: the body of
     each note in 2 Areas/People and 2 Areas/Profile, capped at MAX_CONTEXT_CHARS. Empty when there
-    are none."""
+    are none. A note whose name holds an excluded topic is skipped, and redact_topics takes the
+    topics out of the rest before the cap."""
     parts = []
     for rel in CONTEXT_DIRS:
         folder = Path(vault) / rel
@@ -212,6 +294,10 @@ def vault_context(vault) -> str:
                 continue
             if meta.get("excluded"):
                 continue
+            if topics:
+                if excluded_topic(path.stem, topics):
+                    continue
+                body = redact_topics(body, topics)
             parts.append(f"## {rel}/{path.stem}\n\n{body.strip()}\n")
     return "\n".join(parts)[:MAX_CONTEXT_CHARS]
 
@@ -224,7 +310,7 @@ class Chat:
     title: str
     date: str           # created, YYYY-MM-DD
     stem: str
-    sorted: bool        # the user checked it as theirs (`sorted:` in its frontmatter)
+    sorted: bool        # `sorted:` in its frontmatter (kept in the sidecar, never in the prompt)
     visibility: str
     hash: str
     text: str           # the user's side, trimmed and scrubbed, for the filter prompt
@@ -248,15 +334,17 @@ def kept_chats(vault: Path, topics: list[str], log=print) -> tuple[list[Chat], C
         if collect.skip_note(meta) or not meta.get("chat_id") or not meta.get("source"):
             skipped["excluded or not a chat"] += 1
             continue
+        # The whole title and body, answers included, before any trim: reflect shows more of a chat
+        # than the filter does, so a topic past the filter's cut must still keep the chat out.
+        if excluded_topic(f"{meta.get('title') or path.stem}\n{body}", topics):
+            skipped["excluded topic"] += 1
+            continue
         source = str(meta["source"])
         text, n = you_turns(body, source, meta.get("message_count"))
         if not n:
             skipped["no turns"] += 1
             continue
         title = _cut(meta.get("title") or path.stem, MAX_TITLE_CHARS)
-        if excluded_topic(f"{title}\n{text}", topics):
-            skipped["excluded topic"] += 1
-            continue
         date = str(meta.get("created") or meta.get("updated") or "")[:10]
         out.append(Chat(rel, source, str(meta["chat_id"]), scrub_text(title), date, path.stem,
                         bool(meta.get("sorted")), collect.visibility_of(meta), chat_hash(meta, body),
@@ -292,9 +380,10 @@ def build_prompt(batch: list[Chat], context: str = "") -> str:
                      + context)
     parts.append("\n# Chats\n")
     for c in batch:
-        checked = ", checked by the user as theirs" if c.sorted else ""
+        # `sorted:` is set on unsure chats too, so it says nothing about whose chat it is and stays
+        # out of the prompt.
         parts.append(f"\n## {c.key}\n\ntitle: {c.title}\nsource: {c.source}, started {c.date or 'unknown'}, "
-                     f"{c.turns} turns{checked}\n\n{c.text}\n")
+                     f"{c.turns} turns\n\n{c.text}\n")
     return "".join(parts)
 
 
@@ -428,15 +517,16 @@ def run(cfg, vault: Path | None = None, cap_usd: float | None = None, limit: int
         if not vault.is_dir():
             raise guards.Refused(f"no vault at {vault}")
         pstate = profile_state(state, vault, cfg.vault)
-        scores = load_scores(pstate)
-        chats, skipped = kept_chats(vault, exclude_topics(state), say)
-        if only_table:
-            print(table(month_counts(scores, {c.rel for c in chats})))
+        topics = exclude_topics(state)
+        chats, skipped = kept_chats(vault, topics, say)
+        if only_table:   # reads only, so no lock
+            print(table(month_counts(load_scores(pstate), {c.rel for c in chats})))
             return 0
         if cap_usd is None:
             raise guards.Refused("pass --cap-usd: the filter has no default cap")
         check_stops(state, vault, cfg.vault)
         with profile_lock(state, now):
+            scores = load_scores(pstate)   # under the lock, so another run's scores are never saved over
             todo = to_score(chats, scores)
             if limit is not None:
                 todo = todo[:max(0, limit)]
@@ -447,7 +537,7 @@ def run(cfg, vault: Path | None = None, cap_usd: float | None = None, limit: int
             budget = guards.Budget(state, spend_key(day), cap_usd)
             result = score_chats(todo, scores, pstate, day, budget, state / PROFILE_DIR / "work", runner,
                                  stop=lambda: check_stops(state, vault, cfg.vault), log=say,
-                                 context=vault_context(vault), batch_size=batch_size)
+                                 context=vault_context(vault, topics), batch_size=batch_size)
             runs = guards.load_json(pstate / FILTER_RUNS, [])
             runs.append({"when": now.isoformat(timespec="seconds"), "scored": result["scored"],
                          "calls": result["calls"], "cost": round(result["cost"], 6), "models": result["models"],

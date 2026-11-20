@@ -427,7 +427,9 @@ def confidence(n_chats: int) -> str:
     return "one chat"
 
 
-def rejected_lines(vault: Path) -> list[str]:
+def rejected_lines(vault: Path, topics: list[str] | None = None) -> list[str]:
+    """The bullets in rejected.md. With `topics`, the copy that goes into a prompt: the excluded
+    topics are taken out first (filter.redact_topics). matches_rejected always gets the full list."""
     path = Path(vault) / REJECTED_REL
     if not path.is_file():
         return []
@@ -435,6 +437,7 @@ def rejected_lines(vault: Path) -> list[str]:
         _, body = read_note(path)
     except Exception:
         return []
+    body = filt.redact_topics(body, topics or [])
     out = []
     for line in body.splitlines():
         m = re.match(r"^\s*[-*]\s+(?:\[.\]\s+)?(.+)$", line)
@@ -531,9 +534,10 @@ def check_claims(raw: dict, month: str, chats: list[ChatDoc], rejected: list[str
 
 # --- prompts ------------------------------------------------------------------------------------
 
-def profile_context(vault: Path) -> str:
+def profile_context(vault: Path, topics: list[str] | None = None) -> str:
     """The People and Profile notes (rejected.md left out, since it's passed on its own), with each
-    note's source, capped at MAX_CONTEXT_CHARS."""
+    note's source, capped at MAX_CONTEXT_CHARS. Excluded `topics` come out before the cap: a note
+    whose name holds one is skipped, and filter.redact_topics takes them out of the rest."""
     parts = []
     for rel in CONTEXT_DIRS:
         folder = Path(vault) / rel
@@ -546,22 +550,28 @@ def profile_context(vault: Path) -> str:
                 meta, body = read_note(path)
             except Exception:
                 continue
-            if meta.get("excluded"):
+            if meta.get("excluded") or filt.excluded_topic(path.stem, topics or []):
                 continue
+            body = filt.redact_topics(body, topics or [])
             parts.append(f"## {rel}/{path.stem} (source: {meta.get('source', 'unknown')})\n\n{body.strip()}\n")
     return "\n".join(parts)[:MAX_CONTEXT_CHARS]
 
 
-def imports_text(vault: Path) -> str:
+def imports_text(vault: Path, topics: list[str] | None = None) -> str:
+    """The memory exports under IMPORTS_DIR, capped at MAX_IMPORT_CHARS, with excluded `topics`
+    taken out before the cap (as in profile_context)."""
     folder = Path(vault) / IMPORTS_DIR
     if not folder.is_dir():
         return ""
     parts = []
     for path in sorted(folder.glob("*.md")):
+        if filt.excluded_topic(path.stem, topics or []):
+            continue
         try:
             _, body = read_note(path)
         except Exception:
             continue
+        body = filt.redact_topics(body, topics or [])
         parts.append(f"## {path.stem}\n\n{body.strip()}\n")
     return "\n".join(parts)[:MAX_IMPORT_CHARS]
 
@@ -1018,16 +1028,23 @@ def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, 
     topics = filt.exclude_topics(state)
     kept_chats, _ = filt.kept_chats(vault, topics, say)
     kept_rels = {c.rel for c in kept_chats}
-    counts_by_month = filt.month_counts(scores, kept_rels)
-    if not months:
+    # a chat that changed after the filter scored it would be read on a stale score: skip it until
+    # dream.filter rescores it (the filter's own rule, filt.to_score)
+    stale = {c.rel for c in filt.to_score(kept_chats, scores) if c.rel in scores}
+    if stale:
+        say(f"reflect: skipped {len(stale)} chats that changed after the filter scored them")
+    fresh_rels = kept_rels - stale
+    counts_by_month = filt.month_counts(scores, fresh_rels)
+    if months is None:
         months = filt.pick_months(counts_by_month, pick or 3)
     if not months:
         say("reflect: no scored chats, so nothing to reflect on (run dream.filter first)")
         return 1
     say(f"reflect: months {', '.join(months)}")
-    context = profile_context(vault)
-    rejected = rejected_lines(vault)
-    imports = imports_text(vault)
+    context = profile_context(vault, topics)
+    rejected = rejected_lines(vault)               # in full, for matches_rejected
+    rejected_shown = rejected_lines(vault, topics)  # the prompts' copy, excluded topics taken out
+    imports = imports_text(vault, topics)
     stats: Counter = Counter()
     costs: dict[str, float] = {"extract": 0.0, "reword": 0.0, "fact-check": 0.0, "gist": 0.0}
     noted: list[str] = []
@@ -1037,14 +1054,14 @@ def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, 
     per_month: dict[str, dict] = {}
     error = None
     for month in months:
-        chats = select_chats(vault, scores, kept_rels, month, max_chats)
+        chats = select_chats(vault, scores, fresh_rels, month, max_chats)
         per_month[month] = {"chats": len(chats), "about": counts_by_month.get(month, {}).get("about", 0)}
         stats["chats read"] += len(chats)
         if not chats:
             say(f"reflect: {month} has no chats about the user")
             continue
         try:
-            raw, cost, _ = cached_call(cache, f"{month} extract", extract_prompt(month, chats, noted, context, rejected),
+            raw, cost, _ = cached_call(cache, f"{month} extract", extract_prompt(month, chats, noted, context, rejected_shown),
                                        EXTRACT_SCHEMA, budget, cwd, runner, stop, EXTRACT_MODEL, EXTRACT_CALL_USD, say)
             costs["extract"] += cost
             kept, dropped, c = check_claims(raw, month, chats, rejected, topics)
@@ -1055,7 +1072,7 @@ def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, 
             dropped += held
             all_dropped += dropped
             if kept:
-                prompt, ids = check_prompt(kept, chats, context, rejected, imports)
+                prompt, ids = check_prompt(kept, chats, context, rejected_shown, imports)
                 raw_v, cost, _ = cached_call(cache, f"{month} check", prompt, CHECK_SCHEMA, budget, cwd, runner,
                                              stop, CHECK_MODEL, CHECK_CALL_USD, say)
                 costs["fact-check"] += cost
@@ -1102,7 +1119,7 @@ def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, 
               "costs": dict(costs), "spent_on_ledger": budget.spent(), "cap": cap_usd, "error": error,
               "questions_dropped": q_bad, "claims": [c.to_dict() for c in all_checked],
               "dropped": [c.to_dict() for c in all_dropped], "month_table": counts_by_month,
-              "excluded_topics": len(topics),
+              "excluded_topics": len(topics), "stale_chats": len(stale),
               "codex_chats": sum(1 for c in kept_chats if c.source == "codex"),
               "filter_runs": guards.load_json(pstate / filt.FILTER_RUNS, []),
               "models": {"extract": EXTRACT_MODEL, "check": CHECK_MODEL, "gist": CHECK_MODEL,
@@ -1183,6 +1200,8 @@ def render_readme(record: dict, scores: dict, kept_rels: set[str], facts: list[d
             "## Counts\n\n",
             f"- Chats scored by the filter: {scored} (of {len(kept_rels)} kept chats in the copy); {about} of "
             f"them scored {filt.PROFILE_MIN} or more and were labelled yours.\n",
+            f"- Skipped because they changed after the filter scored them: {record.get('stale_chats', 0)} "
+            f"(run dream.filter again to rescore them).\n",
             f"- Months picked: {', '.join(record['months'])}. The rule, set before any scores were seen: the 3 "
             f"months in a row with the most chats about you, and a tie goes to the more recent run.\n",
             "".join(f"    - {m}: {v.get('about', 0)} chats about you, {v.get('chats', 0)} read, "

@@ -6,6 +6,7 @@ State lives under BONSAI_STATE/dream/, outside the vault and outside git:
     dream/lock              one run at a time (pid + start time; stale after LOCK_STALE_HOURS)
     dream/STOP              if it exists, nothing runs (so does "0 Inbox/STOP dream.md" in the vault)
     dream/spend.json        {"2026-11-18": 0.42, ...} dollars spent per run date, for the cap
+    dream/spend.lock        held for the moment Budget.add reads and writes spend.json
     dream/night.log         one line per event, scrubbed
     dream/rehearsed.json    set after a clean run on a copy; the real vault is refused before that
     dream/                  per-vault state for the real vault: state.json, proposals/, vault-history
@@ -14,16 +15,21 @@ State lives under BONSAI_STATE/dream/, outside the vault and outside git:
 """
 from __future__ import annotations
 
+import contextlib
 import datetime as _dt
 import hashlib
 import json
 import os
+import time
+import uuid
 from pathlib import Path
 
 from common.notes import write_text_atomic
 from common.scrub import scrub_obj, scrub_text
 
 LOCK_STALE_HOURS = 6
+SPEND_LOCK_WAIT = 5.0       # seconds Budget.add waits for spend.lock
+SPEND_LOCK_STALE = 30.0     # seconds; an older spend.lock was left by a run that died mid-write
 DEFAULT_CAP_USD = 1.00
 VAULT_STOP = Path("0 Inbox") / "STOP dream.md"
 
@@ -167,9 +173,72 @@ class Budget:
         return self.remaining() >= self.MIN_CALL_USD
 
     def add(self, usd: float) -> None:
-        data = load_json(self.path, {})
-        data[self.day] = round(float(data.get(self.day, 0.0)) + float(usd or 0.0), 6)
-        save_json(self.path, data)
+        """Add `usd` to this day's line. The read and the write happen under spend.lock, because
+        every key shares one file: without it, two jobs adding at once (the night job and a profile
+        run, say) each write back what they read and one charge is lost."""
+        with _ledger_lock(self.path.with_name("spend.lock")):
+            data = load_json(self.path, {})
+            data[self.day] = round(float(data.get(self.day, 0.0)) + float(usd or 0.0), 6)
+            save_json(self.path, data)
+
+
+def _lock_age(path: Path) -> float | None:
+    try:
+        return time.time() - Path(path).stat().st_mtime
+    except OSError:
+        return None
+
+
+def _break_stale(path: Path) -> None:
+    """Remove a spend.lock left by a run that died. It's renamed to a name of its own first and
+    deleted only if the renamed file is still the old one, so two takers never delete a fresh lock
+    the other just made."""
+    mine = path.with_name(f"{path.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.stale")
+    try:
+        os.rename(path, mine)
+    except OSError:
+        return
+    age = _lock_age(mine)
+    if age is None or age > SPEND_LOCK_STALE:
+        with contextlib.suppress(OSError):
+            mine.unlink()
+        return
+    with contextlib.suppress(OSError):   # a fresh lock came in between: give it back
+        if not path.exists():
+            os.rename(mine, path)
+            return
+        mine.unlink()
+
+
+@contextlib.contextmanager
+def _ledger_lock(path: Path):
+    """Hold `path` (made with O_EXCL) for a short read and write. Waits up to SPEND_LOCK_WAIT
+    seconds; a lock older than SPEND_LOCK_STALE is taken over. If the wait runs out on a fresh
+    lock, the write goes ahead without it: the call behind it is already paid for, and leaving the
+    charge off the ledger would do more harm to the cap than the rare lost update."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + SPEND_LOCK_WAIT
+    got = False
+    while True:
+        try:
+            os.close(os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            got = True
+            break
+        except (FileExistsError, PermissionError):   # PermissionError: Windows, a file mid-delete
+            pass
+        age = _lock_age(path)
+        if age is not None and age > SPEND_LOCK_STALE:
+            _break_stale(path)
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.02)
+    try:
+        yield got
+    finally:
+        if got:
+            with contextlib.suppress(OSError):
+                path.unlink()
 
 
 # --- the copy gate --------------------------------------------------------------------------

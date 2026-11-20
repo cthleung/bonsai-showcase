@@ -112,3 +112,41 @@ def test_a_question_quoting_another_month_makes_the_diary_private():
     no_vis = {k: v for k, v in q.items() if k != "visibility"}
     assert reflect.render_diary("2025-07", [c], 1, DAY, [no_vis])[0]["visibility"] == "private"
 
+
+# --- chats that changed after scoring are skipped --------------------------------------------
+
+def _stale_run(cfg, tmp_path, name):
+    model = Model({"2025-07": []})
+    assert run(cfg, model, tmp_path / name) == 0
+    _, readme = read_note(tmp_path / name / "README.md")
+    return model.prompts("claims")[0], readme
+
+
+def test_the_score_helper_stores_the_filters_own_hash(cfg, months):
+    kept, _ = filt.kept_chats(cfg.vault, [], QUIET)
+    scores = filt.load_scores(filt.profile_state(cfg.state, cfg.vault, cfg.vault))
+    rels = {m.relative_to(cfg.vault).as_posix() for m in months.values()}
+    assert rels <= {c.rel for c in kept}
+    assert not rels & {c.rel for c in filt.to_score(kept, scores)}
+
+
+def test_a_chat_edited_after_scoring_is_skipped_and_counted(cfg, months, tmp_path):
+    p = months["a"]
+    p.write_text(p.read_text(encoding="utf-8").replace("before work", "before work, rain or shine"),
+                 encoding="utf-8")
+    prompt, readme = _stale_run(cfg, tmp_path, "one")
+    assert "I water the tomatoes" not in prompt and "I water the beans" in prompt
+    assert "Skipped because they changed after the filter scored them: 1 " in readme
+    assert record(cfg)["stale_chats"] == 1
+    score(cfg, p)                                   # rescored: read again
+    prompt, readme = _stale_run(cfg, tmp_path, "two")
+    assert "rain or shine" in prompt
+    assert "Skipped because they changed after the filter scored them: 0 " in readme
+
+
+def test_a_chat_never_scored_is_not_counted_as_stale(cfg, months, tmp_path):
+    chat(cfg, "c-n", "new one", [("I planted some garlic in the back bed today", "Nice.", None)], "2025-07-28")
+    prompt, readme = _stale_run(cfg, tmp_path, "out")
+    assert "garlic" not in prompt
+    assert "Skipped because they changed after the filter scored them: 0 " in readme
+
