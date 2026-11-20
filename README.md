@@ -26,6 +26,8 @@ So it's got to live somewhere you own, in a format any agent can read, and with 
 
 The edge is where you work, so it's kept light. Private compute is where your raw history lives and gets read, because years of personal chats shouldn't be shipped off to whoever asks. And the cloud is really useful, but it only gets the smallest slice it needs. The gateway on the private compute tier is what decides who gets what. Your own trusted agents already get raw search and read through it, and everyone else will get one door, `ask(question, purpose)`, that searches locally and hands back a short answer with citations (like Perplexity, but for personal indexing instead of the web). That door is still to come.
 
+![Diagram of the three tiers, stacked. Edge, where you work: you, your phone, car or voice assistant, and Claude Code, Codex and Copilot, which search and read the vault and leave notes in their own inbox. Private compute, hardware you own: capture, the night job and profile, local search, the vault, and the gateway, the only door out. Cloud: Google Drive keeps the vault in sync, and cloud agents like ChatGPT send the gateway a question and get a short answer back, never raw chats.](docs/img/tiers.svg)
+
 ## What's in here
 
 Bonsai runs as a crew of small jobs, each with one task, and most of the AI ones get checked by plain code before anything reaches you:
