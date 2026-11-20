@@ -233,10 +233,12 @@ def chat_id8(chat_id: str) -> str:
 
 def chat_note_name(created: str, title: str, chat_id: str) -> str:
     """`<YYYY-MM-DD> <title> (<id8>).md` (docs/note-format.md). Round brackets, because Obsidian
-    ends a `[[...]]` link at the first `]]`, so a name ending in `]` can't be linked."""
+    ends a `[[...]]` link at the first `]]`, so a name ending in `]` can't be linked.
+    The title is scrubbed first: write_note scrubs the body and frontmatter, but nothing scrubs a
+    path, so a key pasted into a chat title would otherwise end up in the vault as a file name."""
     if not _DATE_RX.fullmatch(str(created)):
         raise ValueError(f"created must be YYYY-MM-DD, got {created!r}")
-    return f"{created} {safe_filename(title, 80)} ({chat_id8(chat_id)}).md"
+    return f"{created} {safe_filename(scrub_text(str(title)), 80)} ({chat_id8(chat_id)}).md"
 
 
 def _check_source(source: str) -> None:

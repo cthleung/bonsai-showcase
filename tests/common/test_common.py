@@ -298,3 +298,11 @@ def test_config_repo_visibility(tmp_path, monkeypatch):
     monkeypatch.setenv("BONSAI_REPO_VISIBILITY", "notes=public")      # the environment wins
     assert config.load(write_env(tmp_path, "BONSAI_VAULT=/a\nBONSAI_STATE=/b\nBONSAI_REPO_VISIBILITY=x=private\n")
                        ).repo_visibilities == {"notes": "public"}
+
+
+def test_a_key_in_a_chat_title_never_reaches_the_file_name():
+    """write_note scrubs the body and frontmatter; the file name is built from the title too."""
+    key = "sk-ant-api03-" + "A" * 40
+    name = notes.chat_note_name("2025-07-03", f"garden {key}", "c-k12345")
+    assert key not in name and "sk-ant" not in name
+    assert name.startswith("2025-07-03 garden ") and name.endswith(" (c-k12345).md")
