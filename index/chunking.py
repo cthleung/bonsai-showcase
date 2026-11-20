@@ -9,8 +9,9 @@
 - Every chunk starts with `[<source> | <date> | <title>]`, the free version of contextual retrieval.
 
 Skipped: everything on EXCLUDED_PATHS (the inbox, the archive, the profile diary, the long view
-and rejected claims), notes with `excluded:` set or a `type` on EXCLUDED_TYPES, and files whose
-names start with a dot. Token counts are estimates (a CJK or Hangul character is about one token, other text about
+and rejected claims), notes with an `excluded` key or a `type` containing a word on EXCLUDED_TYPES
+(excluded_meta), notes whose frontmatter won't parse or that aren't UTF-8, and files whose names
+start with a dot. Token counts are estimates (a CJK or Hangul character is about one token, other text about
 3.5 characters a token), good enough to keep each chunk well inside the server's context.
 """
 from __future__ import annotations
@@ -43,7 +44,7 @@ EXCLUDED_PATHS = (
     "2 Areas/Profile/Long view.md",
     "2 Areas/Profile/rejected.md",
 )
-EXCLUDED_TYPES = ("diary",)        # frontmatter `type:` values that are never indexed
+EXCLUDED_TYPES = ("diary",)        # a `type:` containing one of these is never indexed (excluded_meta)
 
 
 def excluded_path(rel: str) -> bool:
@@ -55,35 +56,103 @@ def excluded_path(rel: str) -> bool:
     return False
 
 
+def hidden_path(rel: str) -> bool:
+    """True when any part of the path starts with a dot (`.obsidian-win/`, `.trash/`, `.draft.md`)."""
+    return any(part.startswith(".") for part in Path(rel).parts)
+
+
+def off_limits(rel: str) -> bool:
+    """The path rules in one place: on EXCLUDED_PATHS, or hidden. note_files() and the gateway
+    (gateway/access.py) both use this, so what agents can read never drifts from what's indexed."""
+    return excluded_path(rel) or hidden_path(rel)
+
+
+FLAT_MAX_DEPTH = 20     # nesting deeper than this in one value is refused as unreadable
+FLAT_MAX_ITEMS = 1000   # and so is a value that flattens to more scalars than this (YAML aliases)
+
+
+def _flat(value, depth: int = 0, out: list | None = None) -> list:
+    """Every scalar in a frontmatter value, lists and mappings flattened (`type: [[diary]]` is a
+    list inside a list in YAML). Raises ValueError past FLAT_MAX_DEPTH or FLAT_MAX_ITEMS, so a
+    self-referencing alias (`type: &a [*a]`) or an alias bomb can't hang or crash the rules."""
+    out = [] if out is None else out
+    if depth > FLAT_MAX_DEPTH:
+        raise ValueError("frontmatter value nested too deep")
+    if isinstance(value, dict):
+        for k, v in value.items():
+            _flat(k, depth + 1, out)
+            _flat(v, depth + 1, out)
+    elif isinstance(value, (list, tuple, set)):
+        for v in value:
+            _flat(v, depth + 1, out)
+    else:
+        out.append(value)
+        if len(out) > FLAT_MAX_ITEMS:
+            raise ValueError("frontmatter value too big")
+    return out
+
+
 def excluded_meta(meta: dict) -> bool:
-    """`excluded:` set (a chat sorted out), or a `type` on EXCLUDED_TYPES. `type` can be a single
-    value or a list (`type: [diary]`); any listed value on EXCLUDED_TYPES counts."""
-    if meta.get("excluded"):
-        return True
-    kinds = meta.get("type")
-    kinds = kinds if isinstance(kinds, (list, tuple, set)) else [kinds]
-    return any(str(k or "").strip().lower() in EXCLUDED_TYPES for k in kinds)
+    """Keys are compared without case, and every key that folds to the same name counts (`Type`
+    and `type` both). Excluded when:
+    - an `excluded` key is there at all, whatever its value (a chat moved out);
+    - any `type` (or `types`) value contains a word on EXCLUDED_TYPES once `[[ ]]` link brackets
+      are stripped and lists flattened: `diary`, `profile-diary`, `"[[diary]]"`, `[Diary]` all count.
+    Raises ValueError for a value _flat() won't flatten; skip_reason() treats that as unreadable."""
+    if not isinstance(meta, dict):
+        return False
+    kinds: list = []
+    for key, value in meta.items():
+        name = str(key).strip().lower()
+        if name == "excluded":
+            return True
+        if name in ("type", "types"):
+            kinds += _flat(value)
+    words = [str(k).replace("[", "").replace("]", "").strip().lower() for k in kinds if k is not None]
+    return any(t in w for w in words for t in EXCLUDED_TYPES)
 
 
 # Bump CHUNKER_VERSION whenever a change here alters chunk text: the next build then re-chunks
 # every note (vectors of chunks whose text came out the same are reused). rules_id() covers the
 # exclusion lists and the folders scanned: when it changes, the next build re-reads every note's
 # frontmatter, so a note indexed before a rule existed is removed even if the file never changed.
+# Bump RULES_VERSION when how the lists are applied changes (2: type matched as a substring,
+# keys without case, any `excluded` key, lenient frontmatter, files that aren't UTF-8 refused;
+# 3: duplicate keys, an ambiguous `...` closer and frontmatter the strict parser refuses are all
+# unreadable, every key that folds to `type` counts, and runaway values are refused).
 CHUNKER_VERSION = "1"
+RULES_VERSION = "3"
 
 
 def rules_id() -> str:
-    blob = repr((sorted(EXCLUDED_PATHS), sorted(EXCLUDED_TYPES), sorted(MEMORY_GLOBS), str(CHATS_DIR)))
+    blob = repr((sorted(EXCLUDED_PATHS), sorted(EXCLUDED_TYPES), sorted(MEMORY_GLOBS), str(CHATS_DIR),
+                 RULES_VERSION))
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
 
 
-def skip_reason(text: str) -> str | None:
-    """Why a note's text keeps it out of the index ("excluded", "unreadable"), or None."""
+def decode(data: bytes) -> str | None:
+    """A note's bytes as text, or None when they aren't valid UTF-8 (a UTF-16 file, say), which
+    the rules can't read and so never pass."""
     try:
-        meta, _ = notes.parse(text)
-    except Exception:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def skip_reason(text: str | None) -> str | None:
+    """Why a note's text keeps it out of the index and away from agents ("excluded",
+    "unreadable"), or None. None for text means the file wasn't valid UTF-8 (decode()).
+    Never raises. Both readings must work: what the strict parser (the one notes are written
+    with) refuses stays refused, and the lenient one sees frontmatter the strict one would miss.
+    Either reading being excluded excludes."""
+    if text is None:
         return "unreadable"
-    return "excluded" if excluded_meta(meta) else None
+    try:
+        strict, _ = notes.parse(text)
+        lenient, _ = notes.parse_lenient(text)
+        return "excluded" if excluded_meta(strict) or excluded_meta(lenient) else None
+    except Exception:            # RecursionError and MemoryError included: refused, never a crash
+        return "unreadable"
 
 TURN_RX = re.compile(r"^## (\d+)\. You(?: \((\d{4}-\d{2}-\d{2})\))?.*$", re.M)
 CJK_RX = re.compile(r"[ᄀ-ᇿ぀-ヿ㄰-㆏㐀-䶿一-鿿가-힯豈-﫿]")
@@ -144,7 +213,7 @@ def note_files(vault: Path) -> list[tuple[Path, str]]:
     out = []
     for p, kind in found.items():
         rel = p.relative_to(vault).as_posix()
-        if not p.is_file() or excluded_path(rel) or any(part.startswith(".") for part in Path(rel).parts):
+        if not p.is_file() or off_limits(rel):
             continue
         out.append((p, kind))
     return sorted(out, key=lambda t: t[0].as_posix())
@@ -303,11 +372,11 @@ def note_chunks(vault: Path, path: Path, kind: str, text: str | None = None) -> 
     rel = path.relative_to(vault).as_posix()
     if text is None:
         text = path.read_text(encoding="utf-8", errors="replace")
+    if skip_reason(text):
+        return None
     try:
         meta, body = notes.parse(text)
     except Exception:
-        return None
-    if excluded_meta(meta):
         return None
     file_date = dt.date.fromtimestamp(path.stat().st_mtime).isoformat()
     if kind == "chat":

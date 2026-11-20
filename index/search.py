@@ -271,9 +271,14 @@ def log_query(s: Settings, res: Result, asked_mode: str) -> None:
 
 
 def search(s: Settings, query: str, mode: str = "hybrid", k: int = 10, rerank: bool = True,
-           keep_server: bool = False, log=print) -> Result:
+           keep_server: bool = False, log=print, wait: float = 120.0, tie: bool = False,
+           log_queries: bool = True) -> Result:
     """Open the index, start the servers this mode needs (stopping them after unless they were
-    already running or keep_server is set), search, and log the query."""
+    already running or keep_server is set), search, and log the query. `wait` is how long each
+    server gets to come up before it's stopped and the search goes on without it; `tie` ties a
+    server this search starts to this process (index/server.py start()). `log_queries=False`
+    leaves the logging to a caller that filters the hits first (the gateway), so the log holds only
+    what was handed on."""
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}")
     if not s.db_path.exists():
@@ -292,7 +297,7 @@ def search(s: Settings, query: str, mode: str = "hybrid", k: int = 10, rerank: b
     if mode == "hybrid" and rerank and s.rerank_model is not None:
         roles.append("rerank")
     try:
-        with Servers(s, roles, keep=keep_server, log=log) as sv:
+        with Servers(s, roles, keep=keep_server, log=log, wait=wait, tie=tie) as sv:
             embedder = LlamaEmbedder(s.embed_url) if sv.up.get("embed") else None
             reranker = None
             extra = []
@@ -313,7 +318,8 @@ def search(s: Settings, query: str, mode: str = "hybrid", k: int = 10, rerank: b
                 extra.append("reranking off" if not rerank else "no reranker model configured")
             res = run(db, query, mode, k, embedder, reranker)
             res.notes = extra + [n for n in res.notes if not (extra and n.startswith("no reranker"))]
-        log_query(s, res, mode)
+        if log_queries:
+            log_query(s, res, mode)
         return res
     finally:
         db.close()

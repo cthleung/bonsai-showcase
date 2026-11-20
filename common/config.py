@@ -96,10 +96,26 @@ def _hours(value: str) -> float:
     return hours if hours > 0 else DEFAULT_LOCK_MAX_HOURS
 
 
-def load(env_file: Path | None = None) -> Config:
-    """Settings from env_file (default: the repo .env), overridden by real environment variables."""
+def absolute_only(key: str, raw: str) -> Path:
+    """A path from the settings file when the environment doesn't count (the gateway): `~` would
+    be read from the calling project's USERPROFILE or HOME, and a relative path from its working
+    folder, so both are refused."""
+    raw = raw.strip()
+    path = Path(raw)
+    if raw.startswith("~") or not path.is_absolute():
+        raise ConfigError(f"{key} must be an absolute path with no ~ in it (got {raw!r})")
+    return path
+
+
+def _folder(values: dict[str, str], key: str, environ: bool) -> Path:
+    return Path(values[key]).expanduser() if environ else absolute_only(key, values[key])
+
+
+def load(env_file: Path | None = None, environ: bool = True) -> Config:
+    """Settings from env_file (default: the repo .env), overridden by real environment variables
+    unless `environ=False` (the gateway: a project's environment must not repoint it)."""
     values = read_env_file(env_file or ENV_FILE)
-    for key in KEYS:
+    for key in KEYS if environ else ():
         if os.environ.get(key):
             values[key] = os.environ[key]
     missing = [k for k in ("BONSAI_VAULT", "BONSAI_STATE") if not values.get(k)]
@@ -111,8 +127,8 @@ def load(env_file: Path | None = None) -> Config:
     dirs, dir_warnings = parse_specstory_dirs(values.get("BONSAI_SPECSTORY_DIRS", "").strip())
     repos, repo_warnings = parse_repo_visibility(values.get("BONSAI_REPO_VISIBILITY", "").strip())
     return Config(
-        vault=Path(values["BONSAI_VAULT"]).expanduser(),
-        state=Path(values["BONSAI_STATE"]).expanduser(),
+        vault=_folder(values, "BONSAI_VAULT", environ),
+        state=_folder(values, "BONSAI_STATE", environ),
         machine=machine,
         specstory_dirs=dirs,
         specstory_warnings=dir_warnings + repo_warnings,
