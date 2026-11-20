@@ -7,6 +7,9 @@
    wrote (`source: author`, or no `source`). A quote found only in an AI answer, in an agent's note,
    or nowhere gets no exemption, so the model can't get a banned word through by quoting itself.
 
+An ambiguous chat note (common.turns: its turn headings or answer headings can't be told for sure)
+gives no words at all, so nothing in it can be taken for the user's.
+
 2. Provenance. When a source is a note an agent wrote (`source: codex`, `source: agent`, anything
    but `author`) and a quote in the proposal is found in a "You" turn of a captured chat, that chat
    is added as a source, and the proposal's visibility is worked out again with it.
@@ -24,6 +27,7 @@ from pathlib import Path
 import yaml
 
 from common.notes import CHATS_DIR, EXCLUDED_DIR, parse
+from common.turns import parse_turns
 
 OPEN_QUOTE, CLOSE_QUOTE = chr(0x201C), chr(0x201D)   # curly double quotes
 SINGLE_MARKS = "".join(map(chr, (0x2018, 0x2019, 0x201B, 0x2032, 0x60)))    # curly apostrophes, prime, backtick
@@ -34,8 +38,6 @@ MIN_PROVENANCE_CHARS = 20     # a quote shorter than this is too common to name 
 MIN_EXEMPT_WORDS = 2          # a one-word "quote" is a scare quote, and would let any banned word
                               # the user ever used through ("might"), so it gets no exemption
 MAX_PROVENANCE_CHATS = 3
-_TURN_RX = re.compile(r"^## \d+\. You\b.*$", re.M)
-_ANSWER_RX = re.compile(r"^### ", re.M)
 AUTHOR_SOURCES = ("", "author")
 
 
@@ -61,18 +63,17 @@ def quotes_in(text: str) -> list[str]:
     return [(m.group(1) or m.group(2)).strip() for m in QUOTE_RX.finditer(str(text or ""))]
 
 
-def you_turns(body: str) -> str:
-    """The user's side of a chat note: each "You" turn up to its answer heading, minus `>` lines."""
-    out = []
-    marks = list(_TURN_RX.finditer(body))
-    for i, m in enumerate(marks):
-        end = marks[i + 1].start() if i + 1 < len(marks) else len(body)
-        turn = body[m.end():end]
-        answer = _ANSWER_RX.search(turn)
-        if answer:
-            turn = turn[:answer.start()]
-        out += [line for line in turn.splitlines() if not line.lstrip().startswith(">")]
-    return "\n".join(out)
+def you_turns(body: str, message_count=None) -> str:
+    """The user's side of a chat note: each "You" turn up to its answer heading, minus `>` lines
+    (common.turns.parse_turns). This reads an ambiguous chat too; OwnWords leaves those out."""
+    return "\n".join(t.you for t in parse_turns(body, message_count).turns)
+
+
+def own_chat_words(body: str, message_count=None) -> str:
+    """you_turns for the quote checks: '' when the chat's turns are ambiguous, so a quote from it
+    is never exempt and never names it as a source."""
+    chat = parse_turns(body, message_count)
+    return "" if chat.ambiguous else "\n".join(t.you for t in chat.turns)
 
 
 def is_chat(rel: str) -> bool:
@@ -94,7 +95,7 @@ class OwnWords:
             except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError):
                 meta, body = {}, ""
             if is_chat(rel):
-                words = you_turns(body)
+                words = own_chat_words(body, meta.get("message_count"))
             elif str(meta.get("source") or "").strip().lower() in AUTHOR_SOURCES:
                 words = body
             else:

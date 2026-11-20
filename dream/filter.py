@@ -41,9 +41,9 @@ from pathlib import Path
 import yaml
 
 from common import config
-from capture.chatnote import SOURCE_NAMES
 from common.notes import CHATS_DIR, parse, read_note
 from common.scrub import scrub_text
+from common.turns import parse_turns, split_turn
 from dream import collect, guards, propose
 
 FILTER_MODEL = "claude-haiku-4-5"
@@ -167,27 +167,20 @@ def _cut(text: str, limit: int) -> str:
 
 
 def you_text(turn: str, source: str) -> str:
-    """The user's words in one turn of a chat note: the lines after the `## n. You` heading, up to
-    the answer heading `### <source name>`, with the quoted bit of an answer left out."""
-    lines = turn.split("\n")[1:]
-    answer = f"### {SOURCE_NAMES.get(source, source)}"
-    if answer in lines:
-        lines = lines[:lines.index(answer)]
-    elif any(line.startswith("### ") for line in lines):
-        lines = lines[:next(i for i, line in enumerate(lines) if line.startswith("### "))]
-    while lines and (not lines[0].strip() or lines[0].startswith(">")):
-        lines.pop(0)
-    return "\n".join(lines).strip()
+    """The user's words in one turn of a chat note (its `## n. You` heading line first): the lines up
+    to the answer heading, with every `>` line (the quoted bit of an answer) left out. The answer
+    heading is found by common.turns, so `source` is no longer needed; it stays for callers."""
+    return split_turn(turn)[0]
 
 
-def you_turns(body: str, source: str) -> tuple[str, int]:
+def you_turns(body: str, source: str, message_count=None) -> tuple[str, int]:
     """(the user's side of the chat, trimmed to MAX_CHAT_CHARS, number of turns)."""
-    turns = collect.split_turns(body)
+    turns = parse_turns(body, message_count).turns
     if not turns:   # no "You" headings, so there's no telling the user's words from the answers
         return "(no turns found)", 0
     out, size = [], 0
-    for i, (n, t) in enumerate(turns):
-        line = f"Turn {n}: {_cut(you_text(t, source), MAX_TURN_CHARS) or '(no text)'}"
+    for i, t in enumerate(turns):
+        line = f"Turn {t.n}: {_cut(t.you, MAX_TURN_CHARS) or '(no text)'}"
         if out and size + len(line) > MAX_CHAT_CHARS:
             out.append(f"[{len(turns) - i} more turns not shown]")
             break
@@ -256,7 +249,7 @@ def kept_chats(vault: Path, topics: list[str], log=print) -> tuple[list[Chat], C
             skipped["excluded or not a chat"] += 1
             continue
         source = str(meta["source"])
-        text, n = you_turns(body, source)
+        text, n = you_turns(body, source, meta.get("message_count"))
         if not n:
             skipped["no turns"] += 1
             continue

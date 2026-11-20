@@ -54,9 +54,9 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from capture.chatnote import SOURCE_NAMES
 from common import config
 from common.notes import read_note, write_note
+from common.turns import parse_turns, split_turn
 from dream import collect, digest, filter as filt, guards, propose
 
 EXTRACT_MODEL = propose.MODEL
@@ -110,7 +110,6 @@ LEADING_RX = re.compile(r"\b(don't you|do you not|isn't it|aren't you|wouldn't y
                         r"why do you|why did you|what made you|how do you feel|how did you feel)\b", re.I)
 _QUOTE_SPAN_RX = re.compile(r"[\"“]([^\"“”]+)[\"”]")
 _SINGLE_QUOTE_RX = re.compile(r"(?<!\w)['‘]([^'‘’\n]+)['’](?!\w)")   # 'like this', not it's
-_TURN_HEAD_RX =re.compile(r"^## (\d+)\. You(?: \((\d{4}-\d{2}-\d{2})[^)]*\))?", re.M)
 _CJK_RX = re.compile(r"[぀-ヿ㐀-䶿一-鿿가-힯]")
 _ELLIPSIS_RX = re.compile(r"\.{3,}|…")
 _QMAP = str.maketrans({"‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"',
@@ -259,32 +258,25 @@ class ChatDoc:
     score: int
     turns: list[Turn]
     key: str = ""
+    ambiguous: bool = False   # common.turns couldn't tell its turns apart for sure: no quote from it passes
 
 
 def evidence_text(turn_text: str, source: str) -> tuple[str, str]:
     """(the user's words in one `## n. You` turn, the start of the answer). Every `>` line in
-    the user's part is left out: those quote the AI's answer, so they're never the user's words."""
-    lines = turn_text.split("\n")[1:]
-    answer_head = f"### {SOURCE_NAMES.get(source, source)}"
-    cut = None
-    if answer_head in lines:
-        cut = lines.index(answer_head)
-    else:
-        cut = next((i for i, l in enumerate(lines) if l.startswith("### ")), None)
-    mine = lines if cut is None else lines[:cut]
-    answer = [] if cut is None else lines[cut + 1:]
-    mine = [l for l in mine if not l.lstrip().startswith(">")]
-    return "\n".join(mine).strip(), " ".join(" ".join(answer).split())
+    the user's part is left out: those quote the AI's answer, so they're never the user's words.
+    The answer heading is found by common.turns; `source` stays for callers."""
+    mine, answer, _ = split_turn(turn_text)
+    return mine, " ".join(answer.split())
 
 
-def read_turns(body: str, source: str) -> list[Turn]:
-    out = []
-    for n, text in collect.split_turns(body):
-        head = _TURN_HEAD_RX.match(text)
-        date = (head.group(2) if head and head.group(2) else "") or ""
-        mine, answer = evidence_text(text, source)
-        out.append(Turn(n, date, mine, answer))
-    return out
+def read_chat(body: str, message_count=None) -> tuple[list[Turn], bool]:
+    """(the chat's turns, whether common.turns found them ambiguous)."""
+    chat = parse_turns(body, message_count)
+    return [Turn(t.n, t.date or "", t.you, " ".join(t.answer.split())) for t in chat.turns], chat.ambiguous
+
+
+def read_turns(body: str, source: str, message_count=None) -> list[Turn]:
+    return read_chat(body, message_count)[0]
 
 
 def load_chat(vault: Path, rel: str, score: int = 0) -> ChatDoc | None:
@@ -293,14 +285,14 @@ def load_chat(vault: Path, rel: str, score: int = 0) -> ChatDoc | None:
     except Exception:
         return None
     source = str(meta.get("source") or "")
-    turns = read_turns(body, source)
+    turns, ambiguous = read_chat(body, meta.get("message_count"))
     if not turns:
         return None
     date = str(meta.get("created") or meta.get("updated") or "")[:10]
     for t in turns:
         t.date = t.date or date
     return ChatDoc(rel, Path(rel).stem, str(meta.get("title") or Path(rel).stem), date, source,
-                   collect.visibility_of(meta), int(score), turns)
+                   collect.visibility_of(meta), int(score), turns, ambiguous=ambiguous)
 
 
 # --- the quote check ----------------------------------------------------------------------------
@@ -326,7 +318,10 @@ def long_enough(q: str) -> bool:
 
 def find_quote(quote: str, chat: ChatDoc) -> tuple[Turn | None, str]:
     """(the turn the quote is in, why not). An ellipsis splits the quote into pieces that must all
-    be in the same turn, in order, each MIN_FRAGMENT_WORDS words or more."""
+    be in the same turn, in order, each MIN_FRAGMENT_WORDS words or more. A chat whose turns can't
+    be told apart for sure (common/turns.py) gives no quotes at all."""
+    if chat.ambiguous:
+        return None, "that chat's turns can't be told apart for sure"
     q = clean_quote(quote)
     if not q:
         return None, "empty quote"

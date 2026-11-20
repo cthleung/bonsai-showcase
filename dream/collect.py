@@ -41,6 +41,7 @@ import yaml
 
 from common.notes import CHATS_DIR, EXCLUDED_DIR, parse
 from common.scrub import scrub_text
+from common.turns import parse_turns
 
 INBOX_DIRS = ("0 Inbox/win", "0 Inbox/mac")
 VISIBILITIES = ("private", "creative", "career", "public")
@@ -50,7 +51,6 @@ MAX_NIGHT_CHARS = 400_000     # sources in one night, across calls
 MAX_INDEX_NOTES = 500
 FIRST_DAYS = 3                # how far back the first night run looks, without a watermark
 UPDATED_LAG_DAYS = 2          # how long before `since` a chat's last update can be and still count
-TURN_RX = re.compile(r"^## (\d+)\. You\b.*$", re.M)
 
 
 @dataclass
@@ -106,14 +106,11 @@ def _cut(text: str, limit: int) -> str:
     return text[:limit] + f"\n[cut here: {len(text) - limit} more characters not shown]\n"
 
 
-def split_turns(body: str) -> list[tuple[int, str]]:
-    """[(turn number, text of that turn)] from a chat note body. [] when it has no turn headings."""
-    marks = list(TURN_RX.finditer(body))
-    out = []
-    for i, m in enumerate(marks):
-        end = marks[i + 1].start() if i + 1 < len(marks) else len(body)
-        out.append((int(m.group(1)), body[m.start():end].rstrip() + "\n"))
-    return out
+def split_turns(body: str, message_count=None) -> list[tuple[int, str]]:
+    """[(turn number, text of that turn)] from a chat note body. [] when it has no turn headings.
+    The turns are common.turns.parse_turns's, so a turn heading inside a code block doesn't start a
+    turn. Pass the note's `message_count` so a lone fenced heading can be told from a real one."""
+    return [(t.n, t.text.rstrip() + "\n") for t in parse_turns(body, message_count).turns]
 
 
 def skip_note(meta: dict) -> bool:
@@ -171,7 +168,7 @@ def source_files(vault: Path) -> list[Path]:
 
 
 def _chat_pieces(rel, path, meta, body, h, seen_entry, max_piece) -> list[Piece]:
-    turns = split_turns(body)
+    turns = split_turns(body, meta.get("message_count"))
     title = str(meta.get("title") or path.stem)
     vis = visibility_of(meta)
     date = str(meta.get("updated") or meta.get("created") or _file_date(path))
