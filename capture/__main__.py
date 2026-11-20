@@ -20,36 +20,27 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
-import os
 import sys
-import time
 from pathlib import Path
 
 from capture import status
 from common import config
 
-LOCK_STALE = 3 * 3600
+LOCK_STALE = 3 * 3600      # only for a lock file from before 2026-11-20, which holds a bare pid
 
 
 @contextlib.contextmanager
-def run_lock(cfg):
-    """One capture run at a time (they share the cursors). A lock older than 3 hours is left over
-    from a crash and gets taken over."""
-    path = Path(cfg.state) / "capture.lock"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists() and time.time() - path.stat().st_mtime > LOCK_STALE:
-        path.unlink(missing_ok=True)
-    try:
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError:
-        yield False
-        return
-    os.write(fd, str(os.getpid()).encode())
-    os.close(fd)
-    try:
-        yield True
-    finally:
-        path.unlink(missing_ok=True)
+def run_lock(cfg, log=None):
+    """One capture run at a time (they share the cursors). A lock is taken over when the process
+    holding it is gone, or when it has held it longer than BONSAI_LOCK_MAX_HOURS (12): then that
+    process is stopped first, with a loud line in the log. Leaving removes the file only when it's
+    still ours (common/pidlock.py). `log` defaults to the capture log."""
+    from common import pidlock
+    hours = getattr(cfg, "lock_max_hours", config.DEFAULT_LOCK_MAX_HOURS)
+    say = log or (lambda line: status.log(cfg, line))
+    with pidlock.pid_lock(Path(cfg.state) / "capture.lock", legacy_stale=LOCK_STALE, max_age=hours * 3600,
+                          log=say) as got:
+        yield got
 
 
 SKIPPED = object()     # a job returns this when it had nothing to do on this computer (exit code 2)

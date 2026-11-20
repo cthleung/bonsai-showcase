@@ -40,7 +40,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from capture import sessionnote as sn
 from capture.chatnote import Turn
@@ -213,10 +213,11 @@ def _think_text(lines: list[str]) -> str:
 # --- cleaning ------------------------------------------------------------------------------------
 
 def file_name(path: str) -> str:
-    """The last part of a path from any computer: `c:\\x\\plan.md` and `/x/plan.md` are both
-    `plan.md`. Path() on a Mac or Linux box reads a backslash as part of the name, so a Windows path
-    there would come back whole; this splits on both separators."""
-    return re.split(r"[\\/]", path.strip())[-1]
+    """The last part of a path from any computer: `c:\\x\\notes.md` and `/x/notes.md` are both
+    `notes.md`. Path() on a Mac or Linux box reads a backslash as part of the name, so a Windows path
+    there would come back whole. PureWindowsPath splits on both kinds of slash and drops a drive
+    (`c:notes.md`) too, on any computer."""
+    return PureWindowsPath(path.strip()).name
 
 
 _DROP = re.compile(r"<(system-reminder|browser_instruction|local-command-caveat|user-prompt-submit-hook)>.*?</\1>", re.S)

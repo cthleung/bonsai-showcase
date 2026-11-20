@@ -23,7 +23,8 @@ VISIBILITIES = ("private", "creative", "career", "public")
 # name, lowercased. Empty by default (every repo is private); BONSAI_REPO_VISIBILITY fills it in.
 REPO_VISIBILITY: dict[str, str] = {}
 KEYS = ("BONSAI_VAULT", "BONSAI_STATE", "BONSAI_MACHINE", "BONSAI_SPECSTORY_DIRS", "BONSAI_SPECSTORY_AGENTS",
-        "BONSAI_CODEX_SESSIONS", "BONSAI_REPO_VISIBILITY")
+        "BONSAI_CODEX_SESSIONS", "BONSAI_REPO_VISIBILITY", "BONSAI_LOCK_MAX_HOURS")
+DEFAULT_LOCK_MAX_HOURS = 12.0
 
 
 class ConfigError(RuntimeError):
@@ -44,6 +45,9 @@ class Config:
     codex_sessions: Path | None = None     # Codex's session transcripts; None means $CODEX_HOME/sessions or ~/.codex/sessions
     # ((repo folder name lowercased, visibility), ...) from BONSAI_REPO_VISIBILITY; () means REPO_VISIBILITY
     repo_visibility: tuple = ()
+    # A lock whose holder is still alive but older than this is a hung run: the next taker stops the
+    # holder and takes over (common/pidlock.py). A value that isn't a number falls back to the default.
+    lock_max_hours: float = DEFAULT_LOCK_MAX_HOURS
 
     @property
     def inbox_name(self) -> str:
@@ -82,10 +86,36 @@ def read_env_file(path: Path) -> dict[str, str]:
     return out
 
 
-def load(env_file: Path | None = None) -> Config:
-    """Settings from env_file (default: the repo .env), overridden by real environment variables."""
+def _hours(value: str) -> float:
+    """BONSAI_LOCK_MAX_HOURS, leniently: anything that isn't a positive number is the default, so a
+    typo never stops every command."""
+    try:
+        hours = float(value.strip())
+    except ValueError:
+        return DEFAULT_LOCK_MAX_HOURS
+    return hours if hours > 0 else DEFAULT_LOCK_MAX_HOURS
+
+
+def absolute_only(key: str, raw: str) -> Path:
+    """A path from the settings file when the environment doesn't count (the gateway): `~` would
+    be read from the calling project's USERPROFILE or HOME, and a relative path from its working
+    folder, so both are refused."""
+    raw = raw.strip()
+    path = Path(raw)
+    if raw.startswith("~") or not path.is_absolute():
+        raise ConfigError(f"{key} must be an absolute path with no ~ in it (got {raw!r})")
+    return path
+
+
+def _folder(values: dict[str, str], key: str, environ: bool) -> Path:
+    return Path(values[key]).expanduser() if environ else absolute_only(key, values[key])
+
+
+def load(env_file: Path | None = None, environ: bool = True) -> Config:
+    """Settings from env_file (default: the repo .env), overridden by real environment variables
+    unless `environ=False` (the gateway: a project's environment must not repoint it)."""
     values = read_env_file(env_file or ENV_FILE)
-    for key in KEYS:
+    for key in KEYS if environ else ():
         if os.environ.get(key):
             values[key] = os.environ[key]
     missing = [k for k in ("BONSAI_VAULT", "BONSAI_STATE") if not values.get(k)]
@@ -97,8 +127,8 @@ def load(env_file: Path | None = None) -> Config:
     dirs, dir_warnings = parse_specstory_dirs(values.get("BONSAI_SPECSTORY_DIRS", "").strip())
     repos, repo_warnings = parse_repo_visibility(values.get("BONSAI_REPO_VISIBILITY", "").strip())
     return Config(
-        vault=Path(values["BONSAI_VAULT"]).expanduser(),
-        state=Path(values["BONSAI_STATE"]).expanduser(),
+        vault=_folder(values, "BONSAI_VAULT", environ),
+        state=_folder(values, "BONSAI_STATE", environ),
         machine=machine,
         specstory_dirs=dirs,
         specstory_warnings=dir_warnings + repo_warnings,
@@ -106,6 +136,7 @@ def load(env_file: Path | None = None) -> Config:
                                if a.strip()),
         codex_sessions=Path(values["BONSAI_CODEX_SESSIONS"]).expanduser() if values.get("BONSAI_CODEX_SESSIONS") else None,
         repo_visibility=repos,
+        lock_max_hours=_hours(values.get("BONSAI_LOCK_MAX_HOURS", "")),
     )
 
 

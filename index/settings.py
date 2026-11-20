@@ -73,20 +73,28 @@ class Settings:
         return f"{self.embed_model.name}@{EMBED_DIMS}"
 
 
-def _value(values: dict[str, str], key: str) -> str:
-    return (os.environ.get(key) or values.get(key) or "").strip()
+def _value(values: dict[str, str], key: str, environ: bool = True) -> str:
+    return ((os.environ.get(key) if environ else None) or values.get(key) or "").strip()
 
 
-def load(env_file: Path | None = None) -> Settings:
-    cfg = config.load(env_file)
+def load(env_file: Path | None = None, environ: bool = True) -> Settings:
+    """Settings from env_file (default: the repo .env), with real environment variables winning
+    unless `environ=False`, when only the file counts (the gateway, gateway/server.py)."""
+    cfg = config.load(env_file, environ=environ)
     values = config.read_env_file(env_file or config.ENV_FILE)
+
+    def val(key: str) -> str:
+        return _value(values, key, environ)
+
     models = cfg.state / "models"
 
     def path(key: str, default: str) -> Path:
-        raw = _value(values, key)
-        return Path(raw).expanduser() if raw else models / default
+        raw = val(key)
+        if not raw:
+            return models / default
+        return Path(raw).expanduser() if environ else config.absolute_only(key, raw)
 
-    rerank_raw = _value(values, "BONSAI_RERANK_MODEL")
+    rerank_raw = val("BONSAI_RERANK_MODEL")
     rerank = None if rerank_raw.lower() == "none" else path("BONSAI_RERANK_MODEL", DEFAULT_RERANK_MODEL)
     return Settings(
         vault=cfg.vault,
@@ -94,6 +102,6 @@ def load(env_file: Path | None = None) -> Settings:
         llama_server=path("BONSAI_LLAMA_SERVER", DEFAULT_LLAMA_SERVER),
         embed_model=path("BONSAI_EMBED_MODEL", DEFAULT_EMBED_MODEL),
         rerank_model=rerank,
-        embed_port=int(_value(values, "BONSAI_EMBED_PORT") or DEFAULT_EMBED_PORT),
-        rerank_port=int(_value(values, "BONSAI_RERANK_PORT") or DEFAULT_RERANK_PORT),
+        embed_port=int(val("BONSAI_EMBED_PORT") or DEFAULT_EMBED_PORT),
+        rerank_port=int(val("BONSAI_RERANK_PORT") or DEFAULT_RERANK_PORT),
     )

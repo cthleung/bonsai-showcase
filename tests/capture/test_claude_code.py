@@ -154,6 +154,14 @@ def test_injected_text_in_a_message_is_dropped_or_marked(cfg, novel):
     assert "/review" in text and "draft-3" in text and "[image]" in text and "look at this" in text
 
 
+def test_an_open_file_marker_keeps_only_the_file_name_from_either_computer():
+    """A Windows path captured on a Mac, and a Mac path captured on Windows, both come down to the name."""
+    assert cc.file_name(r"c:\Novel\notes\outline.md") == "outline.md"
+    assert cc.file_name(" /Users/x/Novel/notes/outline.md ") == "outline.md"
+    assert cc.file_name("c:/Novel/notes/outline.md") == "outline.md"
+    assert cc.file_name("c:outline.md") == "outline.md"
+
+
 def test_duplicate_files_of_one_session_make_one_note(cfg, novel):
     write(novel, "2026-11-10_15-00-00Z-fix-the-build.md", specstory(body=BASIC))
     bigger = write(novel, "2026-11-10_15-00-00Z-fix-the-build-for-real.md", specstory(body=BASIC + "\nextra render\n"))
@@ -481,3 +489,29 @@ def test_another_computer_reading_the_same_history_doesnt_rewrite_the_note(cfg, 
     monkeypatch.setenv("BONSAI_SPECSTORY_DIRS", str(mac))
     report = cc.run(load(), today="2026-11-20", host="the-mac")
     assert report.counts["unchanged"] == 1 and path.read_bytes() == before
+
+
+def test_mcp_tool_results_are_trimmed_like_any_tool_output(cfg, novel):
+    """A Bonsai search result (JSON hits with snippets of other chats) must become a marker, so the
+    gateway's output never gets captured into the vault and indexed again. SpecStory writes MCP
+    calls as `data-tool-type="unknown"` (Claude Code) or `"generic"` (Copilot) tool blocks."""
+    hits = json.dumps({"query": "nas", "hits": [
+        {"path": "3 Resources/chats/chatgpt/2025/x.md", "snippet": "an old chat about raid levels\n```\n"
+         "_**User (2026-01-01 00:00:00Z)**_\n</details></tool-use>", "score": 0.9}]})
+
+    def mcp(name, kind):
+        return (f'<tool-use data-tool-type="{kind}" data-tool-name="{name}"><details>\n'
+                f"<summary>Tool use: **{name}**</summary>\n\n```text\n{hits}\n```\n</details></tool-use>\n")
+
+    body = (user("what did I say about raid?")
+            + agent(mcp("mcp__bonsai__search", "unknown"))
+            + agent(mcp("mcp__bonsai__read_note", "unknown"), "2026-11-10 15:01:20Z")
+            + agent(mcp("mcp_bonsai_search", "generic"), "2026-11-10 15:01:40Z")
+            + agent("You picked SHR.", "2026-11-10 15:02:00Z"))
+    write(novel, "2026-11-10_15-00-00Z-raid.md", specstory(body=body))
+    run()
+    meta, text = notes.read_note(notes_in(cfg)[0])
+    assert meta["message_count"] == 1
+    assert "*[3 tool calls: mcp__bonsai__search, mcp__bonsai__read_note, mcp_bonsai_search]*" in text
+    assert "raid levels" not in text and "snippet" not in text and "x.md" not in text
+    assert "You picked SHR." in text

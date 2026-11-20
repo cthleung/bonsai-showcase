@@ -90,6 +90,55 @@ def parse(text: str) -> tuple[dict, str]:
     return meta, body[1:] if body.startswith("\n") else body
 
 
+@_without_timestamps
+class _RulesLoader(yaml.SafeLoader):
+    """For the off-limits rules: a key that appears twice in one mapping is an error, since which
+    one counts would be a guess (`type: diary` then `type: note`)."""
+
+    def construct_mapping(self, node, deep=False):
+        if isinstance(node, yaml.MappingNode):
+            self.flatten_mapping(node)
+            seen = set()
+            for key_node, _ in node.value:
+                key = self.construct_object(key_node, deep=True)
+                try:
+                    marker = ("k", key) if not isinstance(key, (list, dict)) else ("r", repr(key))
+                except TypeError:
+                    marker = ("r", repr(key))
+                if marker in seen:
+                    raise yaml.constructor.ConstructorError(None, None, f"duplicate key {key!r}",
+                                                            key_node.start_mark)
+                seen.add(marker)
+        return super().construct_mapping(node, deep=deep)
+
+
+def parse_lenient(text: str) -> tuple[dict, str]:
+    """Like parse(), for deciding what's off limits rather than for writing. It also sees
+    frontmatter whose fences carry trailing spaces or that sits after blank lines, and it raises
+    (so the caller refuses the note as unreadable) where the reading would be a guess:
+    - an opening fence with no closing one;
+    - a `...` closing line with a `---` line anywhere after it (which of the two ends the
+      frontmatter is ambiguous; `...` alone is the YAML end marker and is accepted);
+    - a key that appears twice in one mapping;
+    - frontmatter that isn't a mapping."""
+    lines = text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    i = 0
+    while i < len(lines) and not lines[i].strip():
+        i += 1
+    if i >= len(lines) or lines[i].rstrip() != "---":
+        return {}, "\n".join(lines)
+    for j in range(i + 1, len(lines)):
+        closer = lines[j].rstrip()
+        if closer in ("---", "..."):
+            if closer == "..." and any(line.rstrip() == "---" for line in lines[j + 1:]):
+                raise ValueError("frontmatter ends with `...` and a `---` line follows: ambiguous")
+            meta = yaml.load("\n".join(lines[i + 1:j]), Loader=_RulesLoader) or {}
+            if not isinstance(meta, dict):
+                raise ValueError("frontmatter is not a mapping")
+            return meta, "\n".join(lines[j + 1:])
+    raise ValueError("frontmatter has no closing fence")
+
+
 def render(meta: dict, body: str) -> str:
     body = body if body.endswith("\n") or not body else body + "\n"
     if not meta:

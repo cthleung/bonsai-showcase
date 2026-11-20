@@ -12,3 +12,4 @@ desktop.ini
 *.sqlite-wal
 *.sqlite-shm
 queries.jsonl
+.venv/

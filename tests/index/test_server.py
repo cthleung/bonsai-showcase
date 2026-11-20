@@ -75,6 +75,7 @@ def test_keep_and_serve_leave_it_running(ss):
         pass
     e = _entry(ss)
     assert e and not e["auto_stop"] and procs.alive(e["pid"], e["token"])
+    assert not _nothing_listens(ss.embed_port)  # the probe sees a live listener, so a True later means something
     assert server.stop(ss, "embed") and not procs.alive(e["pid"], e["token"])
 
 
@@ -84,14 +85,26 @@ def test_a_server_that_never_gets_healthy_is_killed_and_forgotten(ss, monkeypatc
     assert not server.start(ss, "embed", wait=2, log=logs.append)
     assert _entry(ss) is None and any("not up after" in m for m in logs)
     time.sleep(0.5)
-    with socket.socket() as s:                 # the port is free again: the process is gone
+    assert _nothing_listens(ss.embed_port)     # the port is free again: the process is gone
+
+
+def _nothing_listens(port: int) -> bool:
+    """True when no process is listening on the port, checked two ways.
+
+    The health checks leave connections in TIME_WAIT on the server's port, and macOS refuses a
+    plain bind over those for 30 s, so on macOS and Linux the bind sets SO_REUSEADDR, which gets
+    past TIME_WAIT but still fails while a listener is up. On Windows SO_REUSEADDR would let the
+    bind take a port that's still being listened on, and a plain bind already gets past TIME_WAIT
+    there, so it's left off."""
+    with socket.socket() as s:
         if sys.platform != "win32":
-            # The stand-in closed each health check's connection itself (HTTP/1.0), so those sit in
-            # TIME_WAIT on the port for a while after it dies. On macOS and Linux a plain bind fails
-            # over them; SO_REUSEADDR lets it through, and still fails while anything listens there.
-            # (On Windows the same flag would let the bind take a port that is still in use.)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind(("127.0.0.1", ss.embed_port))
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    with socket.socket() as s:
+        return s.connect_ex(("127.0.0.1", port)) != 0
 
 
 def test_a_server_that_exits_early_is_forgotten(ss, monkeypatch):

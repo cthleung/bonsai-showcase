@@ -88,7 +88,7 @@ def plan(s: Settings, db) -> tuple[list[tuple[Path, str, str, float, int, str]],
             rep.unchanged += 1
             continue
         data = path.read_bytes()
-        text = data.decode("utf-8", errors="replace")
+        text = chunking.decode(data)
         if chunking.skip_reason(text):
             if row is not None:
                 store.delete_note(db, rel)

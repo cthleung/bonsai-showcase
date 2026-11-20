@@ -7,6 +7,7 @@ FAKE_LLAMA_ENV_OUT=<file> writes the names of the environment variables it got t
 """
 import json
 import os
+import socketserver
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -40,4 +41,12 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
-HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+class Server(HTTPServer):
+    def server_bind(self):
+        # HTTPServer.server_bind looks up socket.getfqdn(), a reverse DNS lookup that took about
+        # 35 s on the macOS CI runner. The stand-in never uses the name, so it skips the lookup.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
+Server(("127.0.0.1", port), Handler).serve_forever()
