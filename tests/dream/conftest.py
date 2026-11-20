@@ -27,14 +27,16 @@ def chat_meta(updated="2026-11-17", visibility="private") -> dict:
     usual night (2026-11-18, three days back)."""
     return {"title": "ramen in sapporo", "source": "google-ai-mode", "chat_id": "AbCdEfGh1234567",
             "url": "https://example.invalid/x", "created": "2026-11-10", "updated": updated,
-            "captured": updated, "model": "unknown", "message_count": 3, "capture": "cdp-share-link",
+            "captured": updated, "model": "unknown", "capture": "cdp-share-link",
             "raw": "x.json", "visibility": visibility, "tags": ["chat"]}
 
 
 def chat_note(title, turns, updated="2026-11-17", captured=None, created=None, **extra):
     """A chat note whose turns are (the user's words, the answer) pairs."""
     meta = chat_meta(updated=updated)
-    meta.update(title=title, captured=captured or updated, created=created or updated, **extra)
+    meta.update(title=title, captured=captured or updated, created=created or updated,
+                message_count=len(turns))   # like capture: the number of turns written
+    meta.update(extra)
     body = f"# {title}\n\n"
     for n, (you, answer) in enumerate(turns, 1):
         body += f"## {n}. You ({updated})\n\n{you}\n\n### AI Mode\n\n{answer}\n\n"

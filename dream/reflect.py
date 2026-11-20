@@ -54,9 +54,10 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from capture.chatnote import SOURCE_NAMES
 from common import config
 from common.notes import read_note, write_note
+from common.scrub import scrub_text
+from common.turns import parse_turns, split_turn
 from dream import collect, digest, filter as filt, guards, propose
 
 EXTRACT_MODEL = propose.MODEL
@@ -84,6 +85,7 @@ CONTEXT_DIRS = ("2 Areas/People", "2 Areas/Profile")
 FACT_KINDS = ("said", "told")          # the user's own words: headings 1 and 3, and the facts digest
 KINDS = FACT_KINDS + ("did", "interpretation", "contradiction", "unknown")
 MULTI_CHAT_KINDS = ("interpretation", "contradiction")
+FEELING_KINDS = ("interpretation", "unknown", "contradiction")   # the kinds FEELING_RX applies to
 THEMES = ("work", "code", "ai", "writing", "school", "taste", "health", "money", "people", "plans",
           "life", "other")
 STATUSES = ("supported", "unsupported", "invented", "contradicted", "answered")
@@ -106,11 +108,14 @@ FEELING_RX = re.compile(
     r"stress\w*|frustrat\w+|happy|happiness|unhappy|sad|sadness|excit\w+|worr\w+|nervous|guilt\w*|"
     r"self-esteem|identity|diagnos\w+|adhd|autis\w+|depress\w+|values|cares? about|deeply|wants? to be seen|"
     r"struggles? with|insists?|obsess\w*|craves?|longs? for|enjoys?|loves?|hates?)\b", re.I)
-LEADING_RX = re.compile(r"\b(don't you|do you not|isn't it|aren't you|wouldn't you|right\?|surely|"
-                        r"why do you|why did you|what made you|how do you feel|how did you feel)\b", re.I)
+# Matched on text with straight quote marks. `right?` has its own branch: a `\b` after `?` would
+# need a letter next to it, so "right?" at the end of a question never matched.
+LEADING_RX = re.compile(r"\b(?:don't you|do you not|isn't it|aren't you|wouldn't you|surely|"
+                        r"why do you|why did you|what made you|how do you feel|how did you feel)\b"
+                        r"|\bright\s*\?", re.I)
 _QUOTE_SPAN_RX = re.compile(r"[\"“]([^\"“”]+)[\"”]")
-_SINGLE_QUOTE_RX = re.compile(r"(?<!\w)['‘]([^'‘’\n]+)['’](?!\w)")   # 'like this', not it's
-_TURN_HEAD_RX =re.compile(r"^## (\d+)\. You(?: \((\d{4}-\d{2}-\d{2})[^)]*\))?", re.M)
+# 'like this', not it's; an apostrophe between two letters stays inside ('I don't know')
+_SINGLE_QUOTE_RX = re.compile(r"(?<!\w)['‘]((?:[^'‘’\n]|(?<=\w)['’](?=\w))+)['’](?!\w)")
 _CJK_RX = re.compile(r"[぀-ヿ㐀-䶿一-鿿가-힯]")
 _ELLIPSIS_RX = re.compile(r"\.{3,}|…")
 _QMAP = str.maketrans({"‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"',
@@ -259,32 +264,25 @@ class ChatDoc:
     score: int
     turns: list[Turn]
     key: str = ""
+    ambiguous: bool = False   # common.turns couldn't tell its turns apart for sure: no quote from it passes
 
 
 def evidence_text(turn_text: str, source: str) -> tuple[str, str]:
     """(the user's words in one `## n. You` turn, the start of the answer). Every `>` line in
-    the user's part is left out: those quote the AI's answer, so they're never the user's words."""
-    lines = turn_text.split("\n")[1:]
-    answer_head = f"### {SOURCE_NAMES.get(source, source)}"
-    cut = None
-    if answer_head in lines:
-        cut = lines.index(answer_head)
-    else:
-        cut = next((i for i, l in enumerate(lines) if l.startswith("### ")), None)
-    mine = lines if cut is None else lines[:cut]
-    answer = [] if cut is None else lines[cut + 1:]
-    mine = [l for l in mine if not l.lstrip().startswith(">")]
-    return "\n".join(mine).strip(), " ".join(" ".join(answer).split())
+    the user's part is left out: those quote the AI's answer, so they're never the user's words.
+    The answer heading is found by common.turns; `source` stays for callers."""
+    mine, answer, _ = split_turn(turn_text)
+    return mine, " ".join(answer.split())
 
 
-def read_turns(body: str, source: str) -> list[Turn]:
-    out = []
-    for n, text in collect.split_turns(body):
-        head = _TURN_HEAD_RX.match(text)
-        date = (head.group(2) if head and head.group(2) else "") or ""
-        mine, answer = evidence_text(text, source)
-        out.append(Turn(n, date, mine, answer))
-    return out
+def read_chat(body: str, message_count=None) -> tuple[list[Turn], bool]:
+    """(the chat's turns, whether common.turns found them ambiguous)."""
+    chat = parse_turns(body, message_count)
+    return [Turn(t.n, t.date or "", t.you, " ".join(t.answer.split())) for t in chat.turns], chat.ambiguous
+
+
+def read_turns(body: str, source: str, message_count=None) -> list[Turn]:
+    return read_chat(body, message_count)[0]
 
 
 def load_chat(vault: Path, rel: str, score: int = 0) -> ChatDoc | None:
@@ -293,14 +291,16 @@ def load_chat(vault: Path, rel: str, score: int = 0) -> ChatDoc | None:
     except Exception:
         return None
     source = str(meta.get("source") or "")
-    turns = read_turns(body, source)
+    turns, ambiguous = read_chat(body, meta.get("message_count"))
     if not turns:
         return None
     date = str(meta.get("created") or meta.get("updated") or "")[:10]
     for t in turns:
         t.date = t.date or date
-    return ChatDoc(rel, Path(rel).stem, str(meta.get("title") or Path(rel).stem), date, source,
-                   collect.visibility_of(meta), int(score), turns)
+        # Keys out at load, so the prompts and the quote check's haystack are the same text.
+        t.text, t.answer = scrub_text(t.text), scrub_text(t.answer)
+    return ChatDoc(rel, Path(rel).stem, scrub_text(str(meta.get("title") or Path(rel).stem)), date, source,
+                   collect.visibility_of(meta), int(score), turns, ambiguous=ambiguous)
 
 
 # --- the quote check ----------------------------------------------------------------------------
@@ -324,30 +324,64 @@ def long_enough(q: str) -> bool:
     return len(re.findall(r"\w+", q)) >= MIN_QUOTE_WORDS or len(_CJK_RX.findall(q)) >= MIN_QUOTE_CJK
 
 
-def find_quote(quote: str, chat: ChatDoc) -> tuple[Turn | None, str]:
-    """(the turn the quote is in, why not). An ellipsis splits the quote into pieces that must all
-    be in the same turn, in order, each MIN_FRAGMENT_WORDS words or more."""
+# A letter or digit that isn't CJK. CJK writing has no spaces between words, so a CJK neighbour
+# counts as a word edge and `Rust写代码` matches inside `我用Rust写代码`.
+_NON_CJK_WORD = r"(?!" + _CJK_RX.pattern + r")\w"
+
+
+def _needs_edge(ch: str) -> bool:
+    return bool(re.match(r"\w", ch)) and not _CJK_RX.match(ch)
+
+
+def _piece_rx(piece: str) -> re.Pattern:
+    """`piece` (already normalized) with a word edge at each end that starts or stops on a
+    non-CJK letter, so `like tomatoes` can't match inside `dislike tomatoes`."""
+    head = r"(?<!" + _NON_CJK_WORD + r")" if _needs_edge(piece[0]) else ""
+    tail = r"(?!" + _NON_CJK_WORD + r")" if _needs_edge(piece[-1]) else ""
+    return re.compile(head + re.escape(piece) + tail)
+
+
+def quote_pieces(quote: str) -> tuple[list[str], str]:
+    """(the quote's pieces, normalized, or [] and why the quote can't be checked). An ellipsis
+    splits a quote into pieces, each MIN_FRAGMENT_WORDS words or more."""
     q = clean_quote(quote)
     if not q:
-        return None, "empty quote"
+        return [], "empty quote"
     if not long_enough(_ELLIPSIS_RX.sub(" ", q)):
-        return None, "quote too short"
+        return [], "quote too short"
     pieces = [p.strip() for p in _ELLIPSIS_RX.split(q)]
     pieces = [p for p in pieces if p]
     if len(pieces) > 1 and any(len(re.findall(r"\w+", p)) < MIN_FRAGMENT_WORDS
                                and len(_CJK_RX.findall(p)) < MIN_QUOTE_CJK for p in pieces):
-        return None, "quote piece too short around an ellipsis"
-    wanted = [norm(p) for p in pieces]
+        return [], "quote piece too short around an ellipsis"
+    return [norm(p) for p in pieces], ""
+
+
+def pieces_in(pieces: list[str], hay: str) -> bool:
+    """True when every piece is in `hay` (normalized), in order, each with word edges. The one
+    matcher behind the quote check, the question check and the writing-ban exemption."""
+    pos = 0
+    for w in pieces:
+        if not w:
+            return False
+        m = _piece_rx(w).search(hay, pos)
+        if not m:
+            return False
+        pos = m.end()
+    return bool(pieces)
+
+
+def find_quote(quote: str, chat: ChatDoc) -> tuple[Turn | None, str]:
+    """(the turn the quote is in, why not). An ellipsis splits the quote into pieces that must all
+    be in the same turn, in order, each MIN_FRAGMENT_WORDS words or more. A chat whose turns can't
+    be told apart for sure (common/turns.py) gives no quotes at all."""
+    if chat.ambiguous:
+        return None, "that chat's turns can't be told apart for sure"
+    wanted, why = quote_pieces(quote)
+    if not wanted:
+        return None, why
     for t in chat.turns:
-        hay = norm(t.text)
-        pos, ok = 0, True
-        for w in wanted:
-            i = hay.find(w, pos)
-            if i < 0:
-                ok = False
-                break
-            pos = i + len(w)
-        if ok:
+        if pieces_in(wanted, norm(t.text)):
             return t, ""
     return None, "not found in a You turn of that chat"
 
@@ -401,7 +435,9 @@ def confidence(n_chats: int) -> str:
     return "one chat"
 
 
-def rejected_lines(vault: Path) -> list[str]:
+def rejected_lines(vault: Path, topics: list[str] | None = None) -> list[str]:
+    """The bullets in rejected.md. With `topics`, the copy that goes into a prompt: the excluded
+    topics are taken out first (filter.redact_topics). matches_rejected always gets the full list."""
     path = Path(vault) / REJECTED_REL
     if not path.is_file():
         return []
@@ -409,6 +445,7 @@ def rejected_lines(vault: Path) -> list[str]:
         _, body = read_note(path)
     except Exception:
         return []
+    body = scrub_text(filt.redact_topics(body, topics or []))
     out = []
     for line in body.splitlines():
         m = re.match(r"^\s*[-*]\s+(?:\[.\]\s+)?(.+)$", line)
@@ -430,6 +467,28 @@ def matches_rejected(text: str, rejected: list[str]) -> str | None:
             continue
         if norm(r) in norm(text) or len(mine & theirs) / len(mine | theirs) >= 0.6:
             return r
+    return None
+
+
+def rule_drop(claim: Claim, rejected: list[str], topics: list[str], links: bool = False) -> str | None:
+    """Why the script's claim rules drop this claim, or None. Run on the extractor's words and
+    again on every reworded claim, since a reword can bring a banned word back. links=True once
+    name_chats has made chat keys into links (the reword pass, which holds any reword that changed
+    a link): those are left out, since a chat's title isn't the claim's words. On the first pass a
+    `[[...]]` can only be the extractor's own words, so it's checked. The motive and feeling ban
+    covers interpretations, unknowns and contradictions only (FEELING_KINDS): a `did` claim can
+    say "stress test"."""
+    text = digest._LINK_RX.sub(" ", claim.text) if links else claim.text
+    if claim.kind in FEELING_KINDS:
+        m = FEELING_RX.search(text)
+        if m:
+            return f"names a motive, feeling or trait: {m.group(0)!r}"
+    r = matches_rejected(text, rejected)
+    if r:
+        return f"matches the rejected list: {r[:80]}"
+    blob = claim.text + "\n" + "\n".join(q["quote"] for q in claim.quotes)
+    if filt.excluded_topic(blob, topics):
+        return "an excluded topic"
     return None
 
 
@@ -472,25 +531,16 @@ def check_claims(raw: dict, month: str, chats: list[ChatDoc], rejected: list[str
             counts["dropped by quote check"] += 1
         if not why and claim.kind in MULTI_CHAT_KINDS and len(claim.chats) < 2:
             why = "needs quotes from 2 or more chats"
-        if not why and claim.kind not in FACT_KINDS and FEELING_RX.search(claim.text):
-            why = f"names a motive, feeling or trait: {FEELING_RX.search(claim.text).group(0)!r}"
         if not why:
-            r = matches_rejected(claim.text, rejected)
-            if r:
-                why = f"matches the rejected list: {r[:80]}"
+            why = rule_drop(claim, rejected, topics)
         if not why:
-            blob = claim.text + "\n" + "\n".join(q["quote"] for q in claim.quotes)
-            t = filt.excluded_topic(blob, topics)
-            if t:
-                why = "an excluded topic"
-        if not why:
-            vis = {by_key[k].visibility for k in by_key if by_key[k].rel in claim.chats}
-            claim.visibility = vis.pop() if len(vis) == 1 else "private"
+            claim.visibility = chats_visibility(claim.chats, chats)
             claim.text = name_chats(propose.tidy(claim.text).replace("\n", " "), by_key)
             key = norm(claim.text) + "|" + claim.kind
             if key in seen:   # the same claim twice: one claim, both sets of quotes
                 old = seen[key]
                 old.quotes += [q for q in claim.quotes if q not in old.quotes]
+                old.visibility = chats_visibility(old.chats, chats)   # from every chat it now quotes
                 counts["merged repeats"] += 1
                 continue
             seen[key] = claim
@@ -505,9 +555,10 @@ def check_claims(raw: dict, month: str, chats: list[ChatDoc], rejected: list[str
 
 # --- prompts ------------------------------------------------------------------------------------
 
-def profile_context(vault: Path) -> str:
+def profile_context(vault: Path, topics: list[str] | None = None) -> str:
     """The People and Profile notes (rejected.md left out, since it's passed on its own), with each
-    note's source, capped at MAX_CONTEXT_CHARS."""
+    note's source, capped at MAX_CONTEXT_CHARS. Excluded `topics` come out before the cap: a note
+    whose name holds one is skipped, and filter.redact_topics takes them out of the rest."""
     parts = []
     for rel in CONTEXT_DIRS:
         folder = Path(vault) / rel
@@ -520,22 +571,28 @@ def profile_context(vault: Path) -> str:
                 meta, body = read_note(path)
             except Exception:
                 continue
-            if meta.get("excluded"):
+            if meta.get("excluded") or filt.excluded_topic(path.stem, topics or []):
                 continue
+            body = scrub_text(filt.redact_topics(body, topics or []))   # before the cut, so a key is whole
             parts.append(f"## {rel}/{path.stem} (source: {meta.get('source', 'unknown')})\n\n{body.strip()}\n")
     return "\n".join(parts)[:MAX_CONTEXT_CHARS]
 
 
-def imports_text(vault: Path) -> str:
+def imports_text(vault: Path, topics: list[str] | None = None) -> str:
+    """The memory exports under IMPORTS_DIR, capped at MAX_IMPORT_CHARS, with excluded `topics`
+    taken out before the cap (as in profile_context)."""
     folder = Path(vault) / IMPORTS_DIR
     if not folder.is_dir():
         return ""
     parts = []
     for path in sorted(folder.glob("*.md")):
+        if filt.excluded_topic(path.stem, topics or []):
+            continue
         try:
             _, body = read_note(path)
         except Exception:
             continue
+        body = scrub_text(filt.redact_topics(body, topics or []))   # before the cut, so a key is whole
         parts.append(f"## {path.stem}\n\n{body.strip()}\n")
     return "\n".join(parts)[:MAX_IMPORT_CHARS]
 
@@ -559,6 +616,17 @@ def chat_block(c: ChatDoc, answers: bool = True, turns: set[int] | None = None) 
         lines.append(block)
         size += len(block)
     return "".join(lines)
+
+
+def real_month(month) -> bool:
+    """True for a real month written YYYY-MM (2025-07). strptime alone would take 2025-7."""
+    if not isinstance(month, str) or not re.fullmatch(r"\d{4}-\d{2}", month):
+        return False
+    try:
+        _dt.datetime.strptime(month, "%Y-%m")
+    except ValueError:
+        return False
+    return True
 
 
 def month_end(month: str) -> str:
@@ -678,19 +746,30 @@ def gist_prompt(cands: dict[str, Claim]) -> str:
     return "".join(parts)
 
 
-def outside_quotes(text: str, fn) -> str:
-    """`text` with `fn` applied to every stretch outside a quoted span."""
+def quote_spans(text: str) -> list[tuple[int, int, str]]:
+    """(start, end, words inside) for every quoted span: the double-quoted ones, then the
+    single-quoted ones in what's left, so the apostrophe in a double-quoted `don't` is never
+    read as the start of a single-quoted span."""
+    spans = [(m.start(), m.end(), m.group(1)) for m in _QUOTE_SPAN_RX.finditer(text)]
+    rest = _QUOTE_SPAN_RX.sub(lambda m: " " * len(m.group(0)), text)
+    spans += [(m.start(), m.end(), m.group(1)) for m in _SINGLE_QUOTE_RX.finditer(rest)]
+    return sorted(spans)
+
+
+def outside_quotes(text: str, fn, keep_quotes: bool = True) -> str:
+    """`text` with `fn` applied to every stretch outside a quoted span (double or single). With
+    keep_quotes=False the quoted spans are taken out."""
     out, last = [], 0
-    for m in _QUOTE_SPAN_RX.finditer(text):
-        out += [fn(text[last:m.start()]), m.group(0)]
-        last = m.end()
+    for start, end, _ in quote_spans(text):
+        out += [fn(text[last:start]), text[start:end] if keep_quotes else " "]
+        last = end
     out.append(fn(text[last:]))
     return " ".join("".join(out).split())
 
 
 def check_question(item: dict, cands: dict[str, Claim]) -> tuple[dict | None, str]:
-    """A question the script can stand behind, or (None, why). Every quoted span must be inside a
-    quote the script already checked for the claims it's based on."""
+    """A question the script can stand behind, or (None, why). Every quoted span, double or
+    single, must be inside a quote the script already checked for the claims it's based on."""
     kind = item.get("kind")
     based = [g for g in dict.fromkeys(item.get("based_on") or []) if g in cands]
     text = " ".join(str(item.get("text") or "").split())
@@ -700,26 +779,29 @@ def check_question(item: dict, cands: dict[str, Claim]) -> tuple[dict | None, st
         return None, "based on no known claim"
     if not text.endswith("?"):
         return None, "not a question"
-    spans = _QUOTE_SPAN_RX.findall(text)
+    spans = [s for _, _, s in quote_spans(text)]
     if not spans:
         return None, "doesn't quote the user"
     pool = [norm(q["quote"]) for g in based for q in cands[g].quotes]
     for s in spans:
-        if not any(norm(clean_quote(s)) in p for p in pool) or not clean_quote(s):
+        pieces, _ = quote_pieces(s)
+        if not pieces or not any(pieces_in(pieces, p) for p in pool):
             return None, "a quote isn't one of the checked quotes"
-    outside = _QUOTE_SPAN_RX.sub(" ", text)
+    outside = outside_quotes(text, lambda s: s, keep_quotes=False)
     if FEELING_RX.search(outside):
         return None, f"asks about a motive or feeling: {FEELING_RX.search(outside).group(0)!r}"
-    if LEADING_RX.search(outside):
-        return None, f"leading: {LEADING_RX.search(outside).group(0)!r}"
+    straight = outside.translate(_QMAP)     # so a curly "don’t you" is caught too
+    if LEADING_RX.search(straight):
+        return None, f"leading: {LEADING_RX.search(straight).group(0)!r}"
     # dashes outside the quotes become spaced hyphens; quotes stay exactly as written
     fixed = outside_quotes(text, lambda s: re.sub(r"\s*[" + propose.DASHES + r"]\s*", " - ", s))
-    hits = digest.check_text(_QUOTE_SPAN_RX.sub(" ", fixed))
+    hits = digest.check_text(outside_quotes(fixed, lambda s: s, keep_quotes=False))
     if hits:
         return None, "breaks the writing rules: " + ", ".join(hits)
     return {"kind": kind, "based_on": based, "text": fixed,
             "stems": list(dict.fromkeys(s for g in based for s in cands[g].stems)),
-            "months": sorted({cands[g].month for g in based})}, ""
+            "months": sorted({cands[g].month for g in based}),
+            "visibility": visibility([cands[g] for g in based])}, ""
 
 
 def pick_questions(raw: dict, cands: dict[str, Claim]) -> tuple[list[dict], list[str]]:
@@ -782,15 +864,31 @@ def heading_of(c: Claim) -> str:
     return c.kind if c.kind in ("said", "did", "told", "interpretation") else "open"
 
 
-def visibility(claims: list[Claim]) -> str:
-    vis = {c.visibility for c in claims}
+def combine_visibility(values) -> str:
+    """One visibility for things drawn from several sources: their shared value, or private when
+    they differ or there are none (private wins)."""
+    vis = {v or "private" for v in values}
     return vis.pop() if len(vis) == 1 else "private"
+
+
+def visibility(claims: list[Claim]) -> str:
+    return combine_visibility(c.visibility for c in claims)
+
+
+def chats_visibility(rels, chats: list[ChatDoc]) -> str:
+    """The visibility of a claim quoting the chats in `rels`, from every one of them."""
+    rels = set(rels)
+    return combine_visibility(c.visibility for c in chats if c.rel in rels)
 
 
 def render_diary(month: str, claims: list[Claim], n_chats: int, today: str,
                  questions: list[dict] | None = None) -> tuple[dict, str]:
+    """A question can quote another month's chats, so it carries the visibility of the claims it's
+    based on (check_question), and the entry's visibility covers its questions too."""
+    mine = [q for q in questions or [] if month in q.get("months", [])]
+    vis = [c.visibility for c in claims] + [q.get("visibility") or "private" for q in mine]
     meta = {"title": f"Profile diary {month}", "date": month_end(month), "type": "profile-diary",
-            "source": "agent", "learned": today, "visibility": visibility(claims) if claims else "private",
+            "source": "agent", "learned": today, "visibility": combine_visibility(vis),
             "tags": ["profile", "diary", "spike"]}
     body = [f"# Profile diary, {month}\n\n",
             f"Replay entry for {month}, written {today} by the profile spike from {n_chats} of your chats "
@@ -808,7 +906,6 @@ def render_diary(month: str, claims: list[Claim], n_chats: int, today: str,
         for c in sorted(rows, key=lambda c: (c.date, c.id)):
             body.append(f"- [{claim_label(c)}] {c.text} ({', '.join(link(s) for s in c.stems)}, {c.date})\n")
             body.append(quote_lines(c))
-    mine = [q for q in questions or [] if month in q.get("months", [])]
     body.append("\n## Questions\n\n")
     if not mine:
         body.append(f"None from {month}. The gist next to this note has the questions for the whole run.\n")
@@ -966,6 +1063,12 @@ def run(cfg, vault: Path | None = None, months: list[str] | None = None, pick: i
 
 
 def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, dry_run, say) -> int:
+    if months is not None:      # None means pick them; an empty or bad list is a mistake, never "pick"
+        if not months:
+            raise guards.Refused("no months to reflect on (an empty month list)")
+        bad = [m for m in months if not real_month(m)]
+        if bad:
+            raise guards.Refused(f"not a month, as YYYY-MM: {', '.join(map(str, bad))}")
     pstate = filt.profile_state(state, vault, cfg.vault)
     cache = pstate / "reflect"
     cwd = state / filt.PROFILE_DIR / "work"
@@ -975,16 +1078,23 @@ def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, 
     topics = filt.exclude_topics(state)
     kept_chats, _ = filt.kept_chats(vault, topics, say)
     kept_rels = {c.rel for c in kept_chats}
-    counts_by_month = filt.month_counts(scores, kept_rels)
-    if not months:
+    # a chat that changed after the filter scored it would be read on a stale score: skip it until
+    # dream.filter rescores it (the filter's own rule, filt.to_score)
+    stale = {c.rel for c in filt.to_score(kept_chats, scores) if c.rel in scores}
+    if stale:
+        say(f"reflect: skipped {len(stale)} chats that changed after the filter scored them")
+    fresh_rels = kept_rels - stale
+    counts_by_month = filt.month_counts(scores, fresh_rels)
+    if months is None:
         months = filt.pick_months(counts_by_month, pick or 3)
     if not months:
         say("reflect: no scored chats, so nothing to reflect on (run dream.filter first)")
         return 1
     say(f"reflect: months {', '.join(months)}")
-    context = profile_context(vault)
-    rejected = rejected_lines(vault)
-    imports = imports_text(vault)
+    context = profile_context(vault, topics)
+    rejected = rejected_lines(vault)               # in full, for matches_rejected
+    rejected_shown = rejected_lines(vault, topics)  # the prompts' copy, excluded topics taken out
+    imports = imports_text(vault, topics)
     stats: Counter = Counter()
     costs: dict[str, float] = {"extract": 0.0, "reword": 0.0, "fact-check": 0.0, "gist": 0.0}
     noted: list[str] = []
@@ -994,25 +1104,27 @@ def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, 
     per_month: dict[str, dict] = {}
     error = None
     for month in months:
-        chats = select_chats(vault, scores, kept_rels, month, max_chats)
+        chats = select_chats(vault, scores, fresh_rels, month, max_chats)
         per_month[month] = {"chats": len(chats), "about": counts_by_month.get(month, {}).get("about", 0)}
         stats["chats read"] += len(chats)
         if not chats:
             say(f"reflect: {month} has no chats about the user")
             continue
         try:
-            raw, cost, _ = cached_call(cache, f"{month} extract", extract_prompt(month, chats, noted, context, rejected),
+            raw, cost, _ = cached_call(cache, f"{month} extract", extract_prompt(month, chats, noted, context, rejected_shown),
                                        EXTRACT_SCHEMA, budget, cwd, runner, stop, EXTRACT_MODEL, EXTRACT_CALL_USD, say)
             costs["extract"] += cost
             kept, dropped, c = check_claims(raw, month, chats, rejected, topics)
             stats.update(c)
-            kept, held, cost = reword_claims(kept, month, cache, budget, cwd, runner, stop, say)
+            all_dropped += dropped          # before the reword call, so its failure keeps these
+            kept, held, ruled, cost = reword_claims(kept, month, cache, budget, cwd, runner, stop, say,
+                                                    rejected, topics)
             costs["reword"] += cost
             stats["held by writing rules"] += len(held)
-            dropped += held
-            all_dropped += dropped
+            stats["dropped by rules"] += len(ruled)
+            all_dropped += held + ruled
             if kept:
-                prompt, ids = check_prompt(kept, chats, context, rejected, imports)
+                prompt, ids = check_prompt(kept, chats, context, rejected_shown, imports)
                 raw_v, cost, _ = cached_call(cache, f"{month} check", prompt, CHECK_SCHEMA, budget, cwd, runner,
                                              stop, CHECK_MODEL, CHECK_CALL_USD, say)
                 costs["fact-check"] += cost
@@ -1059,12 +1171,15 @@ def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, 
               "costs": dict(costs), "spent_on_ledger": budget.spent(), "cap": cap_usd, "error": error,
               "questions_dropped": q_bad, "claims": [c.to_dict() for c in all_checked],
               "dropped": [c.to_dict() for c in all_dropped], "month_table": counts_by_month,
-              "excluded_topics": len(topics),
+              "excluded_topics": len(topics), "stale_chats": len(stale),
               "codex_chats": sum(1 for c in kept_chats if c.source == "codex"),
               "filter_runs": guards.load_json(pstate / filt.FILTER_RUNS, []),
               "models": {"extract": EXTRACT_MODEL, "check": CHECK_MODEL, "gist": CHECK_MODEL,
                          "filter": filt.FILTER_MODEL}}
     guards.save_json(cache / f"run {day}.json", record)
+    if error:   # partial notes would read as "nothing found"; the cache makes a rerun cheap
+        say(f"reflect: stopped early, so no notes were written; the run record is at {cache / f'run {day}.json'}")
+        return 1
     files["README.md"] = render_readme(record, scores, kept_rels, facts, questions, cache / f"run {day}.json")
     hits = {name: check_written(body) for name, (_, body) in files.items()}
     hits = {k: v for k, v in hits.items() if v}
@@ -1074,43 +1189,89 @@ def _run(cfg, state, vault, months, pick, out, cap_usd, runner, day, max_chats, 
         for name, (meta, body) in files.items():
             print(f"===== {name}\n{body}")
         say(f"reflect: dry run, nothing written; ${budget.spent():.4f} of ${budget.cap:.2f} spent")
-        return 1 if error else 0
+        return 0
     filt.check_stops(state, vault, cfg.vault)
     written = write_new(Path(out), files)
     say(f"reflect: wrote {len(written)} notes to {out}; ${budget.spent():.4f} of ${budget.cap:.2f} spent on "
         f"profile work on {day}")
-    return 1 if error else 0
+    return 0
+
+
+def ban_text(text: str, quotes: list[dict]) -> str:
+    """The words in a claim the writing bans apply to. `[[links]]` are taken out (a chat's title
+    isn't the claim's words), and so is a quoted span, but only when it's inside one of the claim's
+    own checked quotes (the user's words, kept exactly). An unchecked quoted span still counts."""
+    text = digest._LINK_RX.sub(" ", text)
+    pool = [norm(q.get("quote", "")) for q in quotes]
+
+    def own(span: str) -> bool:
+        w = norm(clean_quote(span))
+        return bool(w) and any(pieces_in([w], p) for p in pool)
+
+    out, last = [], 0
+    for start, end, span in quote_spans(text):
+        out += [text[last:start], " " if own(span) else text[start:end]]
+        last = end
+    out.append(text[last:])
+    return "".join(out)
+
+
+def claim_hits(text: str, quotes: list[dict]) -> list[str]:
+    return propose.prose_hits({"text": ban_text(text, quotes)})
+
+
+def tidy_outside_links(text: str) -> str:
+    """propose.tidy's dash fix everywhere except inside `[[links]]`: a chat's name can hold a dash,
+    and the link must keep it to still point at the chat."""
+    fix = lambda s: re.sub(r"\s*[" + propose.DASHES + r"]\s*", " - ", s)
+    out, last = [], 0
+    for m in digest._LINK_RX.finditer(str(text or "")):
+        out += [fix(text[last:m.start()]), m.group(0)]
+        last = m.end()
+    out.append(fix(str(text or "")[last:]))
+    return "".join(out).strip()
 
 
 def reword_claims(claims: list[Claim], month: str, cache: Path, budget, cwd: Path, runner, stop,
-                  log=print) -> tuple[list[Claim], list[Claim], float]:
+                  log=print, rejected: list[str] = (), topics: list[str] = ()
+                  ) -> tuple[list[Claim], list[Claim], list[Claim], float]:
     """propose.reword's pass for the writing bans, cached like the other calls so a rerun gets the
-    same words: one call rewrites the claims whose text breaks a ban, and any still failing is held.
-    Returns (kept, held, cost)."""
-    bad = [c for c in claims if propose.prose_hits({"text": c.text})]
+    same words: one call rewrites the claims whose text breaks a ban, and any still failing, or
+    whose links the reword changed, is held. A reworded claim goes through rule_drop again.
+    Returns (kept, held, dropped by the claim rules, cost). A failed call raises ProposeError: that
+    fails the run, and the claims are never counted as held by the writing rules."""
+    bad = [c for c in claims if claim_hits(c.text, c.quotes)]
     if not bad:
-        return claims, [], 0.0
-    lines = ["Rewrite these so they follow the writing rules. Keep the meaning and the facts. "
-             "Return every item with its id.\n\n", propose.WRITING_RULES, "\n"]
+        return claims, [], [], 0.0
+    lines = ["Rewrite these so they follow the writing rules. Keep the meaning and the facts, and keep "
+             "every [[link]] exactly as written. Return every item with its id.\n\n", propose.WRITING_RULES, "\n"]
     for i, c in enumerate(bad):
         lines.append(json.dumps({"id": str(i), "reason": "", "description": "", "text": c.text,
-                                 "broken rules": propose.prose_hits({"text": c.text})}, ensure_ascii=False) + "\n")
-    cost = 0.0
+                                 "broken rules": claim_hits(c.text, c.quotes)}, ensure_ascii=False) + "\n")
     try:
         out, cost, _ = cached_call(cache, f"{month} reword", "".join(lines), propose.REWORD_SCHEMA, budget, cwd,
                                    runner, stop, propose.MODEL, 0.25, log)
-        fixed = {str(it.get("id")): it for it in out.get("items") or []}
-    except propose.ProposeError:
-        fixed = {}
-    held = []
+    except propose.ProposeError as e:
+        raise propose.ProposeError(f"the reword call failed: {e}") from e
+    fixed = {str(it.get("id")): it for it in out.get("items") or []}
+    held, ruled = [], []
     for i, c in enumerate(bad):
-        new = propose.tidy((fixed.get(str(i)) or {}).get("text", "")).replace("\n", " ")
-        if new and not propose.prose_hits({"text": new}):
-            c.text = new
-        else:
-            c.dropped = "writing rules: " + ", ".join(propose.prose_hits({"text": new or c.text}))
+        new = tidy_outside_links((fixed.get(str(i)) or {}).get("text", "")).replace("\n", " ")
+        hits = claim_hits(new or c.text, c.quotes)
+        if new and not hits and sorted(digest._LINK_RX.findall(new)) != sorted(digest._LINK_RX.findall(c.text)):
+            c.dropped = "writing rules: the reword changed a link"
             held.append(c)
-    return [c for c in claims if c not in held], held, cost
+        elif new and not hits:
+            c.text = new
+            why = rule_drop(c, rejected, topics, links=True)
+            if why:
+                c.dropped = why
+                ruled.append(c)
+        else:
+            c.dropped = "writing rules: " + ", ".join(hits)
+            held.append(c)
+    gone = {id(c) for c in held + ruled}
+    return [c for c in claims if id(c) not in gone], held, ruled, cost
 
 
 def _n(n: int, word: str) -> str:
@@ -1140,6 +1301,8 @@ def render_readme(record: dict, scores: dict, kept_rels: set[str], facts: list[d
             "## Counts\n\n",
             f"- Chats scored by the filter: {scored} (of {len(kept_rels)} kept chats in the copy); {about} of "
             f"them scored {filt.PROFILE_MIN} or more and were labelled yours.\n",
+            f"- Skipped because they changed after the filter scored them: {record.get('stale_chats', 0)} "
+            f"(run dream.filter again to rescore them).\n",
             f"- Months picked: {', '.join(record['months'])}. The rule, set before any scores were seen: the 3 "
             f"months in a row with the most chats about you, and a tie goes to the more recent run.\n",
             "".join(f"    - {m}: {v.get('about', 0)} chats about you, {v.get('chats', 0)} read, "
@@ -1187,8 +1350,6 @@ def render_readme(record: dict, scores: dict, kept_rels: set[str], facts: list[d
             "- Quotes are your words exactly as captured, so they skip the writing rules.\n",
             f"- The run record with every claim, verdict and drop reason is in BONSAI_STATE, at "
             f"`{record_path}`.\n"]
-    if record.get("error"):
-        body.append(f"\n## The run stopped early\n\n{record['error']}\n")
     return meta, "".join(body)
 
 
@@ -1210,8 +1371,10 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     months = None
     if args.first or args.last:
-        if not (args.first and args.last) or not all(re.fullmatch(r"\d{4}-\d{2}", m) for m in (args.first, args.last)):
-            ap.error("--from and --to go together, as YYYY-MM")
+        if not (args.first and args.last) or not all(real_month(m) for m in (args.first, args.last)):
+            ap.error("--from and --to go together, as YYYY-MM with a month from 01 to 12")
+        if args.first > args.last:
+            ap.error(f"--from {args.first} comes after --to {args.last}")
         months = filt.months_between(args.first, args.last)
     elif not args.pick:
         ap.error("pass --from and --to, or --pick N")

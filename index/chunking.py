@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from capture.chatnote import SOURCE_NAMES
+from common.turns import parse_turns, split_turn as turns_split
 from common import notes
 
 MAX_TOKENS = 1000          # a turn up to this size stays one chunk
@@ -154,7 +155,6 @@ def skip_reason(text: str | None) -> str | None:
     except Exception:            # RecursionError and MemoryError included: refused, never a crash
         return "unreadable"
 
-TURN_RX = re.compile(r"^## (\d+)\. You(?: \((\d{4}-\d{2}-\d{2})\))?.*$", re.M)
 CJK_RX = re.compile(r"[ᄀ-ᇿ぀-ヿ㄰-㆏㐀-䶿一-鿿가-힯豈-﫿]")
 LINK_RX = re.compile(r"!?\[([^\]]*)\]\((?:[^)\s]+)\)")
 BARE_URL_RX = re.compile(r"https?://\S{60,}")
@@ -280,27 +280,18 @@ def _head(text: str, tokens: int) -> str:
 
 # --- chat notes -----------------------------------------------------------------------------
 
-def split_turns(body: str) -> list[tuple[int, str | None, str]]:
-    """[(turn number, date or None, the turn's text without its heading)]."""
-    marks = list(TURN_RX.finditer(body))
-    out = []
-    for i, m in enumerate(marks):
-        end = marks[i + 1].start() if i + 1 < len(marks) else len(body)
-        out.append((int(m.group(1)), m.group(2), body[m.end():end]))
-    return out
+def split_turns(body: str, message_count=None) -> list[tuple[int, str | None, str]]:
+    """[(turn number, date or None, the turn's text without its heading)], from
+    common.turns.parse_turns, so a turn heading inside a code block doesn't start a turn."""
+    return [(t.n, t.date, t.text[len(t.heading):]) for t in parse_turns(body, message_count).turns]
 
 
 def split_turn(text: str, source: str) -> tuple[str, str]:
-    """(the user's prompt, the answer) from one turn's text. The quoted bit of an answer
-    (the `>` lines right after the heading) is left out: it's the model's words."""
-    lines = text.split("\n")
-    marker = f"### {SOURCE_NAMES.get(source, source)}"
-    cut = lines.index(marker) if marker in lines else next(
-        (i for i, l in enumerate(lines) if l.startswith("### ")), len(lines))
-    you, answer = lines[:cut], lines[cut + 1:]
-    while you and (not you[0].strip() or you[0].startswith(">")):
-        you.pop(0)
-    return "\n".join(you).strip(), "\n".join(answer).strip()
+    """(the user's prompt, the answer) from one turn's text. Every `>` line of the prompt (the quoted
+    bit of an answer) is left out: it's the model's words. The answer heading is found by
+    common.turns; `source` stays for callers."""
+    you, answer, _ = turns_split(text)
+    return you, answer
 
 
 def _turn_chunks(rel: str, meta: dict, title: str, source: str, visibility: str,
@@ -325,14 +316,13 @@ def chat_chunks(rel: str, meta: dict, body: str) -> list[Chunk]:
     title = str(meta.get("title") or Path(rel).stem)
     visibility = str(meta.get("visibility") or "private")
     fallback = str(meta.get("created") or meta.get("updated") or "")
-    turns = split_turns(body)
+    turns = parse_turns(body, meta.get("message_count")).turns
     if not turns:   # no turn headings: index the whole body in windows
         return _turn_chunks(rel, meta, title, source, visibility, None, fallback, "", clean_answer(body))
     out: list[Chunk] = []
-    for n, date, text in turns:
-        prompt, answer = split_turn(text, source)
-        out += _turn_chunks(rel, meta, title, source, visibility, n, date or fallback,
-                            prompt, clean_answer(answer))
+    for t in turns:
+        out += _turn_chunks(rel, meta, title, source, visibility, t.n, t.date or fallback,
+                            t.you, clean_answer(t.answer))
     return out
 
 

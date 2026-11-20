@@ -110,11 +110,11 @@ Writing rules for every word you write (reason, description, text):
   State a fact plainly or leave it out.
 - Absolute dates like 2026-11-15. Never today, tonight, yesterday, tomorrow, last week, next week.
 - Use they/them for anyone whose pronouns aren't stated, the user included.
-- Never copy a key, password, token or cookie.
-- The one exception to these rules: the user's own words, copied exactly inside double quotes
-  ("like this"), from a "You" turn of a chat or a note the user wrote. When a name or phrase the user
-  used breaks a rule (a team name or a job title, say), quote it exactly or leave it out. Quotes of
-  the AI's answers or of an agent's notes get no exception.
+- The one exception to the wording rules above: the user's own words, copied exactly inside double
+  quotes ("like this"), from a "You" turn of a chat or a note the user wrote. When a name or phrase
+  the user used breaks a rule (a team name or a job title, say), quote it exactly or leave it out.
+  Quotes of the AI's answers or of an agent's notes get no exception.
+- Never copy a key, password, token or cookie, not even inside quotes of the user's words.
 """
 
 INSTRUCTIONS = """\
@@ -330,6 +330,18 @@ def _visibility(pieces: list[Piece]) -> str:
     return vis.pop() if len(vis) == 1 else "private"
 
 
+def _hold_private_merge(prop: dict, existing_vis: dict[str, str]) -> None:
+    """Turn a merge into a flag when its sources are more private than the note it goes into.
+    Private facts never go into a less private note: the user decides by hand. Anything that isn't a
+    merge is left alone, so a merge already held isn't held twice."""
+    if prop.get("action") != "merge":
+        return
+    tvis = existing_vis.get(prop["target"], "private")
+    if tvis != "private" and tvis != prop["visibility"]:
+        prop["action"] = "flag"
+        prop["reason"] = f"{prop['reason']} (merge held: the note is {tvis}, the source is {prop['visibility']})"
+
+
 def validate(raw: dict, batch: Batch, vault: Path, existing: list[dict], today: str,
              inbox: str = "win", words: quotes_mod.OwnWords | None = None) -> tuple[list[dict], list[str]]:
     """(proposals, rejections). Each proposal is a dict ready for the sidecar and the digest.
@@ -396,11 +408,7 @@ def validate(raw: dict, batch: Batch, vault: Path, existing: list[dict], today: 
             elif not text:
                 why = "no text"
             elif action == "merge":
-                tvis = existing_vis.get(target, "private")
-                if tvis != "private" and tvis != prop["visibility"]:
-                    # private facts never go into a less private note: the user decides by hand
-                    prop["action"] = "flag"
-                    prop["reason"] = f"{prop['reason']} (merge held: the note is {tvis}, the source is {prop['visibility']})"
+                _hold_private_merge(prop, existing_vis)
         elif action == "move":
             dest = clean_path(item.get("move_to"), folder=True)
             prop["move_to"] = dest
@@ -459,9 +467,13 @@ REWORD_INTRO = ("Rewrite these so they follow the writing rules. Keep the meanin
 
 def reword(proposals: list[dict], budget, cwd: Path, runner: Runner | None = None,
            stop: Callable[[], None] | None = None,
-           words: quotes_mod.OwnWords | None = None) -> tuple[list[dict], list[dict], float]:
+           words: quotes_mod.OwnWords | None = None,
+           existing_vis: dict[str, str] | None = None) -> tuple[list[dict], list[dict], float]:
     """One call that rewrites proposals whose words break the writing rules. Returns
-    (clean proposals, still failing ones, cost). Paths, sources and actions never change here."""
+    (clean proposals, still failing ones, cost). Paths never change here. With `words`, a quote the
+    new words add is traced like one from the first pass (quotes.add_provenance): the chats it came
+    from join the sources, and a merge whose sources turn more private than its note (`existing_vis`,
+    {rel: visibility}) becomes a flag."""
     bad = [p for p in proposals if prose_hits(p, words)]
     if not bad:
         return proposals, [], 0.0
@@ -485,6 +497,11 @@ def reword(proposals: list[dict], budget, cwd: Path, runner: Runner | None = Non
                 p["description"] = _one_line(it.get("description", "")) or p["description"]
             if "text" in p:
                 p["text"] = tidy(it.get("text", "")) or p["text"]
+            if words is not None:
+                added = quotes_mod.add_provenance(p, words, visibility_of)
+                if added:
+                    p.setdefault("traced", []).extend(added)
+                    _hold_private_merge(p, existing_vis or {})
         hits = prose_hits(p, words)
         if hits:
             p["held"] = hits
@@ -525,9 +542,10 @@ def propose(batches: list[Batch], vault: Path, existing: list[dict], home_list: 
         log(f"propose: call {i} of {len(batches)} read {len(batch.pieces)} pieces "
             f"({batch.chars} chars), {len(props)} proposals, {len(rejected)} rejected, ${cost:.4f}")
     result["proposals"] = dedupe(result["proposals"], taken)
-    traced = [p for p in result["proposals"] if p.get("traced")]
+    good, held, _ = reword(result["proposals"], budget, cwd, runner, stop, words,
+                           {n["rel"]: n["visibility"] for n in existing})
+    traced = [p for p in good + held if p.get("traced")]
     log(f"propose: {len(traced)} proposals from agent notes also cite the chat their quote came from")
-    good, held, _ = reword(result["proposals"], budget, cwd, runner, stop, words)
     log(f"propose: {sum(1 for p in good if p.get('quoted'))} proposals quote the user in words the check leaves out")
     result["proposals"], result["held"] = good, held
     result["cost"] = budget.spent() - spent_before

@@ -36,8 +36,9 @@ def score(cfg, path, n=8, whose="user"):
     pstate = filt.profile_state(cfg.state, cfg.vault, cfg.vault)
     scores = filt.load_scores(pstate)
     rel = path.relative_to(cfg.vault).as_posix()
-    meta, _ = read_note(path)
-    scores[rel] = {"score": n, "whose": whose, "reason": "made up", "hash": "x", "chat_id": meta["chat_id"],
+    meta, body = read_note(path)
+    scores[rel] = {"score": n, "whose": whose, "reason": "made up", "hash": filt.chat_hash(meta, body),
+                   "chat_id": meta["chat_id"],
                    "date": meta["created"], "month": meta["created"][:7]}
     filt.save_scores(pstate, scores)
 

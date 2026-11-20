@@ -11,7 +11,8 @@ box line would hold a line break or other control character is held, never shown
 The quoted text under each box shows the user what gets written.
 
 check_text() is the plain grep for the vault's writing bans. Grep can't tell a metaphor from a
-literal use, so the banned words are banned outright. The digest is checked before it's written.
+literal use, so the banned words are banned outright. What a run adds to the digest is checked
+before it's written.
 """
 from __future__ import annotations
 
@@ -183,8 +184,8 @@ def write(vault: Path, vstate: Path, day: str, run_time: str, proposals: list[di
           mismatched: list[tuple[str, str]] = ()) -> tuple[Path | None, str]:
     """Number the proposals, save the sidecar, and write (or add to) the digest note. `mismatched`
     is (day, id) for ticked boxes whose line doesn't match, listed at the top of this run.
-    Returns (digest path or None for a dry run, the text written). Raises ValueError if the digest's
-    words break the writing rules."""
+    Returns (digest path or None for a dry run, the text written). Raises ValueError if the words
+    this run adds break the writing rules."""
     from dream.guards import load_json, save_json
     side = sidecar_path(vstate, day)
     data = load_json(side, {"day": day, "proposals": [], "held": []})
@@ -205,12 +206,16 @@ def write(vault: Path, vstate: Path, day: str, run_time: str, proposals: list[di
     path = Path(vault) / digest_rel(day)
     if path.exists():
         meta, body = read_note(path)
-        body = body.rstrip() + f"\n\n# Run at {run_time}\n\n" + section
+        new = f"# Run at {run_time}\n\n" + section
+        body = body.rstrip() + "\n\n" + new
     else:
         meta = {"title": f"digest {day}", "date": day, "visibility": "private", "tags": ["digest"]}
-        body = f"# Digest {day}\n\n{INTRO}\n" + section
-    quoted = [q for p in data["proposals"] + proposals for q in p.get("quoted") or ()]
-    hits = check_digest(body, quoted)
+        new = body = f"# Digest {day}\n\n{INTRO}\n" + section
+    # only what this run adds, against this run's quotes: earlier sections were checked when they
+    # were written, a copy run's sidecar doesn't hold the real run's quotes, and a word the user
+    # typed into the digest by hand is theirs to keep
+    quoted = [q for p in proposals for q in p.get("quoted") or ()]
+    hits = check_digest(new, quoted)
     if hits:
         raise ValueError(f"the digest breaks the writing rules: {hits}")
     if dry_run:
