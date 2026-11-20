@@ -229,3 +229,37 @@ def test_a_stale_lock_is_taken_over_and_a_fresh_one_waited_for(tmp_path, monkeyp
     assert time.monotonic() - start >= 0.1
     assert b.spent() == pytest.approx(0.20) and lock.exists()
 
+
+# --- keys scrubbed before reflect's calls ---------------------------------------------
+
+def test_a_planted_key_never_reaches_a_model_call(cfg, tmp_path):
+    key = "sk-ant-" + "Zq7" * 10                      # made up, in the Anthropic key shape
+    turn = f"{GARDEN}, and my key is {key} for the garden app"
+    path = chat(cfg, "c-k", f"garden {key}", [(turn, f"Never share {key} with anyone.", None)], "2025-07-03")
+    # write_chat scrubs, so put the key back by hand: an older note, or one edited since, may hold one
+    path.write_text(path.read_text(encoding="utf-8").replace("[REDACTED:ANTHROPIC_KEY]", key), encoding="utf-8")
+    assert path.read_text(encoding="utf-8").count(key) == 4   # title, heading, turn and answer
+    score(cfg, path)
+    write(cfg.vault, "2 Areas/Profile/basics.md", render({"source": "author"}, f"- Lives in Sapporo\n- key {key}\n"))
+    write(cfg.vault, "3 Resources/imports/chatgpt memory.md", f"- User keeps {key} in a note\n")
+    write(cfg.vault, reflect.REJECTED_REL, render({"source": "author"}, f"- The user shares {key}\n"))
+    model = Model({"2025-07": [FACT]})
+    assert reflect_run(cfg, model, tmp_path / "out") == 0
+    assert {c[0] for c in model.calls} >= {"claims", "verdicts"}
+    for _, _, stdin in model.calls:
+        assert key not in stdin and "Zq7Zq7Zq7" not in stdin
+    ex, ck = model.prompts("claims")[0], model.prompts("verdicts")[0]
+    assert "[REDACTED:ANTHROPIC_KEY]" in ex and "Lives in Sapporo" in ex and GARDEN in ex
+    assert "User keeps [REDACTED:ANTHROPIC_KEY] in a note" in ck
+    # the quote check searches the same scrubbed text, so the claim built on that turn is kept
+    out = (tmp_path / "out" / "spike facts digest.md").read_text(encoding="utf-8")
+    assert "The user waters the tomatoes every morning before work." in out and key not in out
+
+
+def test_the_filter_prompt_scrubs_the_profile_notes_too(cfg):
+    key = "sk-ant-" + "Zq7" * 10
+    write(cfg.vault, "2 Areas/Profile/basics.md", render({"source": "author"}, f"- Lives in Sapporo\n- key {key}\n"))
+    model = FakeClaude({"chats": []})
+    assert filt.run(cfg, cap_usd=1.0, runner=model, now=NOW) == 0
+    assert model.calls and all(key not in stdin for _, stdin, _ in model.calls)
+    assert "Lives in Sapporo" in model.calls[0][1]

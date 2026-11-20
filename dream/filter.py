@@ -537,7 +537,7 @@ def run(cfg, vault: Path | None = None, cap_usd: float | None = None, limit: int
             budget = guards.Budget(state, spend_key(day), cap_usd)
             result = score_chats(todo, scores, pstate, day, budget, state / PROFILE_DIR / "work", runner,
                                  stop=lambda: check_stops(state, vault, cfg.vault), log=say,
-                                 context=vault_context(vault, topics), batch_size=batch_size)
+                                 context=scrub_text(vault_context(vault, topics)), batch_size=batch_size)
             runs = guards.load_json(pstate / FILTER_RUNS, [])
             runs.append({"when": now.isoformat(timespec="seconds"), "scored": result["scored"],
                          "calls": result["calls"], "cost": round(result["cost"], 6), "models": result["models"],
