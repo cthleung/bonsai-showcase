@@ -23,7 +23,8 @@ VISIBILITIES = ("private", "creative", "career", "public")
 # name, lowercased. Empty by default (every repo is private); BONSAI_REPO_VISIBILITY fills it in.
 REPO_VISIBILITY: dict[str, str] = {}
 KEYS = ("BONSAI_VAULT", "BONSAI_STATE", "BONSAI_MACHINE", "BONSAI_SPECSTORY_DIRS", "BONSAI_SPECSTORY_AGENTS",
-        "BONSAI_CODEX_SESSIONS", "BONSAI_REPO_VISIBILITY")
+        "BONSAI_CODEX_SESSIONS", "BONSAI_REPO_VISIBILITY", "BONSAI_LOCK_MAX_HOURS")
+DEFAULT_LOCK_MAX_HOURS = 12.0
 
 
 class ConfigError(RuntimeError):
@@ -44,6 +45,9 @@ class Config:
     codex_sessions: Path | None = None     # Codex's session transcripts; None means $CODEX_HOME/sessions or ~/.codex/sessions
     # ((repo folder name lowercased, visibility), ...) from BONSAI_REPO_VISIBILITY; () means REPO_VISIBILITY
     repo_visibility: tuple = ()
+    # A lock whose holder is still alive but older than this is a hung run: the next taker stops the
+    # holder and takes over (common/pidlock.py). A value that isn't a number falls back to the default.
+    lock_max_hours: float = DEFAULT_LOCK_MAX_HOURS
 
     @property
     def inbox_name(self) -> str:
@@ -82,6 +86,16 @@ def read_env_file(path: Path) -> dict[str, str]:
     return out
 
 
+def _hours(value: str) -> float:
+    """BONSAI_LOCK_MAX_HOURS, leniently: anything that isn't a positive number is the default, so a
+    typo never stops every command."""
+    try:
+        hours = float(value.strip())
+    except ValueError:
+        return DEFAULT_LOCK_MAX_HOURS
+    return hours if hours > 0 else DEFAULT_LOCK_MAX_HOURS
+
+
 def load(env_file: Path | None = None) -> Config:
     """Settings from env_file (default: the repo .env), overridden by real environment variables."""
     values = read_env_file(env_file or ENV_FILE)
@@ -106,6 +120,7 @@ def load(env_file: Path | None = None) -> Config:
                                if a.strip()),
         codex_sessions=Path(values["BONSAI_CODEX_SESSIONS"]).expanduser() if values.get("BONSAI_CODEX_SESSIONS") else None,
         repo_visibility=repos,
+        lock_max_hours=_hours(values.get("BONSAI_LOCK_MAX_HOURS", "")),
     )
 
 

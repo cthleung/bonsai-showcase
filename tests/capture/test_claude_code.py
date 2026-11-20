@@ -154,6 +154,14 @@ def test_injected_text_in_a_message_is_dropped_or_marked(cfg, novel):
     assert "/review" in text and "draft-3" in text and "[image]" in text and "look at this" in text
 
 
+def test_an_open_file_marker_keeps_only_the_file_name_from_either_computer():
+    """A Windows path captured on a Mac, and a Mac path captured on Windows, both come down to the name."""
+    assert cc.file_name(r"c:\Novel\notes\outline.md") == "outline.md"
+    assert cc.file_name(" /Users/x/Novel/notes/outline.md ") == "outline.md"
+    assert cc.file_name("c:/Novel/notes/outline.md") == "outline.md"
+    assert cc.file_name("c:outline.md") == "outline.md"
+
+
 def test_duplicate_files_of_one_session_make_one_note(cfg, novel):
     write(novel, "2026-11-10_15-00-00Z-fix-the-build.md", specstory(body=BASIC))
     bigger = write(novel, "2026-11-10_15-00-00Z-fix-the-build-for-real.md", specstory(body=BASIC + "\nextra render\n"))
