@@ -75,9 +75,9 @@ def wrap(text: str, size: float, room: float, bold: bool = False) -> list[str]:
 
 
 def text(x, y, s, size, color=INK, bold=False, anchor="start", spacing=None):
-    weight = ' font-weight="700"' if bold else ""
+    bold_attr = ' font-weight="700"' if bold else ""
     ls = f' letter-spacing="{spacing}"' if spacing else ""
-    return (f'<text x="{x:.1f}" y="{y:.1f}" font-size="{size}" fill="{color}"{weight}{ls} '
+    return (f'<text x="{x:.1f}" y="{y:.1f}" font-size="{size}" fill="{color}"{bold_attr}{ls} '
             f'text-anchor="{anchor}">{escape(s)}</text>')
 
 
