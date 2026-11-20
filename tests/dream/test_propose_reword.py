@@ -110,3 +110,70 @@ def test_a_reworded_quote_found_only_in_an_ai_answer_stays_held(vault, state, fa
     [p] = res["held"]
     assert p["sources"] == [AGENT_NOTE] and "traced" not in p
 
+
+# --- the digest check covers only what this run writes --------------------------------
+
+NOW = dt.datetime(2026, 11, 18, 3, 0, 0)
+TEAM_TURN = "my summer job is on the Data Pipeline Architecture team at a shop, starting in July"
+TEAM_CHAT = chat_rel("2026-11-17 summer job offer (Kk000001)")
+
+
+def _job(text):
+    return {"action": "profile", "target": "2 Areas/Profile/summer-job.md", "reason": "The user stated their summer job",
+            "sources": ["S1"], "description": "The user has a summer job on a data team", "date": "2026-11-17",
+            "text": text}
+
+
+def test_a_same_day_copy_run_after_a_real_run_with_an_exempt_quote_writes_its_digest(cfg, fake):
+    (cfg.vault / CHAT_REL).unlink()
+    (cfg.vault / INBOX_REL).unlink()
+    write(cfg.vault, TEAM_CHAT, chat_note("summer job offer", [(TEAM_TURN, "Nice.")], message_count=1))
+    guards.mark_rehearsed(cfg.state, cfg.vault, "x")
+    ok = _job('The user is on the "Data Pipeline Architecture" team at a shop.')
+    assert night.run(cfg, runner=fake({"proposals": [ok]}), now=NOW) == 0
+    real = (cfg.vault / digest.digest_rel(DAY)).read_text(encoding="utf-8")
+    assert '"Data Pipeline Architecture"' in real
+
+    later = NOW.replace(hour=4)
+    assert night.run(cfg, on_copy=True, runner=fake({"proposals": []}), now=later) == 0
+    copy = (guards.dream_root(cfg.state) / "vault-copy" / digest.digest_rel(DAY)).read_text(encoding="utf-8")
+    assert '"Data Pipeline Architecture"' in copy   # the real run's section, copied over
+    assert "# Run at 04:00" in copy                  # and the copy run's own section after it
+    assert (cfg.vault / digest.digest_rel(DAY)).read_text(encoding="utf-8") == real
+
+
+def test_a_banned_word_typed_into_an_existing_digest_doesnt_stop_the_next_run(vault, state):
+    stats = "Read 1 chat on 2026-11-18: 0 proposals. Cost $0.00."
+    digest.write(vault, state, DAY, "03:00", [], [], [], stats)
+    path = vault / digest.digest_rel(DAY)
+    path.write_text(path.read_text(encoding="utf-8") + "\nmaybe look at the garden one again\n", encoding="utf-8")
+    written, body = digest.write(vault, state, DAY, "04:00", [], [], [], stats)
+    assert written == path
+    assert "maybe look at the garden" in body and "# Run at 04:00" in body
+
+
+def test_this_runs_own_section_is_still_checked(vault, state):
+    digest.write(vault, state, DAY, "03:00", [], [], [], "Read 1 chat: 0 proposals.")
+    with pytest.raises(ValueError, match="hedging"):
+        digest.write(vault, state, DAY, "04:00", [], [], [], "Read 1 chat: maybe 0 proposals.")
+
+
+# --- the credential line sits after the quote exception -------------------------------
+
+def test_the_credential_rule_comes_after_the_quote_exception_and_still_covers_quotes():
+    lines = propose.WRITING_RULES.splitlines()
+    exception = next(i for i, l in enumerate(lines) if "exception" in l)
+    [cred] = [i for i, l in enumerate(lines) if "password" in l]
+    assert cred > exception
+    assert "not even" in lines[cred]
+    assert "the wording rules above" in lines[exception]
+
+
+def test_the_prompts_that_use_the_writing_rules_still_render(vault, state, fake):
+    assert "{" not in propose.WRITING_RULES and "}" not in propose.WRITING_RULES   # safe in str.format
+    b = _agent_batch(vault)
+    first = _water(FIRST)
+    _, claude = _run(vault, state, fake, b, {"proposals": [first]}, _reworded(first, FIXED))
+    batch_prompt, reword_prompt = (stdin for _, stdin, _ in claude.calls)
+    assert propose.WRITING_RULES in batch_prompt and "{rules}" not in batch_prompt
+    assert propose.WRITING_RULES in reword_prompt

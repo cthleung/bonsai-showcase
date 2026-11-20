@@ -110,11 +110,11 @@ Writing rules for every word you write (reason, description, text):
   State a fact plainly or leave it out.
 - Absolute dates like 2026-11-15. Never today, tonight, yesterday, tomorrow, last week, next week.
 - Use they/them for anyone whose pronouns aren't stated, the user included.
-- Never copy a key, password, token or cookie.
-- The one exception to these rules: the user's own words, copied exactly inside double quotes
-  ("like this"), from a "You" turn of a chat or a note the user wrote. When a name or phrase the user
-  used breaks a rule (a team name or a job title, say), quote it exactly or leave it out. Quotes of
-  the AI's answers or of an agent's notes get no exception.
+- The one exception to the wording rules above: the user's own words, copied exactly inside double
+  quotes ("like this"), from a "You" turn of a chat or a note the user wrote. When a name or phrase
+  the user used breaks a rule (a team name or a job title, say), quote it exactly or leave it out.
+  Quotes of the AI's answers or of an agent's notes get no exception.
+- Never copy a key, password, token or cookie, not even inside quotes of the user's words.
 """
 
 INSTRUCTIONS = """\
