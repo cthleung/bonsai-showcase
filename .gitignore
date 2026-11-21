@@ -13,3 +13,4 @@ desktop.ini
 *.sqlite-shm
 queries.jsonl
 .venv/
+!docs/manifesto/index.html

@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en" data-glass="full">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Future Isn’t the Memory We Were Promised</title>
+<meta name="description" content="A manifesto for Bonsai, and a map of what I want to grow.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..600&family=Zen+Old+Mincho:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg class="defs" width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <filter id="liquid" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.0035 0.018" numOctaves="2" seed="3" result="flow"/>
+    <feGaussianBlur in="flow" stdDeviation="3" result="soft"/>
+    <feDisplacementMap in="SourceGraphic" in2="soft" scale="34" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="glass-bevel" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <!-- the bevel map: green dips below 0.5 inside the rim and is flat 0.5 below it (drawn in site.js) -->
+    <feImage id="bevel-map" href="data:," x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map"/>
+    <!-- each color channel bends a little differently, so the rim gets a colored fringe -->
+    <feDisplacementMap in="SourceGraphic" in2="map" scale="34" xChannelSelector="R" yChannelSelector="G" result="dr"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" scale="28" xChannelSelector="R" yChannelSelector="G" result="dg"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" scale="22" xChannelSelector="R" yChannelSelector="G" result="db"/>
+    <feColorMatrix in="dr" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+    <feColorMatrix in="dg" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+    <feColorMatrix in="db" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+    <feComposite in="r" in2="g" operator="arithmetic" k2="1" k3="1" result="rg"/>
+    <feComposite in="rg" in2="b" operator="arithmetic" k2="1" k3="1"/>
+  </filter>
+</svg>
+<section class="curtain">
+
+<header class="photo photo--hero" id="top">
+  <div class="hero-inner">
+    <p class="dateline">CHARLES · TORONTO · 2026</p>
+    <h1>The Future Isn’t the Memory We Were Promised</h1>
+    <p class="hero-dek">A manifesto for Bonsai, and a map of what I want to grow</p>
+    <ol class="leaders"><li><a href="#part-1"><span class="lnum">(1)</span><span class="dots"></span><span class="lname">Why</span></a></li>
+<li><a href="#part-2"><span class="lnum">(2)</span><span class="dots"></span><span class="lname">The case</span></a></li>
+<li><a href="#part-3"><span class="lnum">(3)</span><span class="dots"></span><span class="lname">Who it’s for</span></a></li>
+<li><a href="#part-4"><span class="lnum">(4)</span><span class="dots"></span><span class="lname">What it feels like</span></a></li>
+<li><a href="#part-5"><span class="lnum">(5)</span><span class="dots"></span><span class="lname">The roadmap</span></a></li></ol>
+  </div>
+  <p class="ph-corner">Title photograph to come</p>
+</header>
+<div class="sheet">
+<section class="grid block epigraph" data-runhead="Epigraph">
+  <blockquote><p>“It’s simply untrue that you can leave things to a machine and the shapes will come out on their own.”</p><footer>Hayao Miyazaki, on making <em>Boro the Caterpillar</em></footer></blockquote>
+</section>
+
+<section class="grid block contents" id="contents" data-runhead="Contents">
+  <p class="folio">Contents</p>
+  <div class="cgroup"><h3>PART ONE · WHY</h3><ol><li><a href="#no-01"><span class="cnum">01</span><span class="cname">An hour a week</span></a></li><li><a href="#no-02"><span class="cnum">02</span><span class="cname">Relentless creativity is precious</span></a></li><li><a href="#no-03"><span class="cnum">03</span><span class="cname">Why bonsai</span></a></li><li><a href="#no-04"><span class="cnum">04</span><span class="cname">The promises</span></a></li></ol></div><div class="cgroup"><h3>PART TWO · THE CASE</h3><ol><li><a href="#no-05"><span class="cnum">05</span><span class="cname">Why now</span></a></li><li><a href="#no-06"><span class="cnum">06</span><span class="cname">The Playbook test</span></a></li><li><a href="#no-07"><span class="cnum">07</span><span class="cname">One context, many lives</span></a></li></ol></div><div class="cgroup"><h3>PART THREE · WHO IT&#x27;S FOR</h3><ol><li><a href="#no-08"><span class="cnum">08</span><span class="cname">Creatives first, then everyone</span></a></li></ol></div><div class="cgroup"><h3>PART FOUR · WHAT IT FEELS LIKE</h3><ol><li><a href="#no-09"><span class="cnum">09</span><span class="cname">Kind</span></a></li><li><a href="#no-10"><span class="cnum">10</span><span class="cname">Fun</span></a></li><li><a href="#no-11"><span class="cnum">11</span><span class="cname">Yours</span></a></li></ol></div><div class="cgroup"><h3>PART FIVE · THE ROADMAP</h3><ol><li><a href="#no-12"><span class="cnum">12</span><span class="cname">Now</span></a></li><li><a href="#no-13"><span class="cnum">13</span><span class="cname">Next</span></a></li><li><a href="#no-14"><span class="cnum">14</span><span class="cname">Later</span></a></li><li><a href="#no-15"><span class="cnum">15</span><span class="cname">The horizon</span></a></li></ol></div><p class="cback">Closing · A, The detailed roadmap · Endnotes · Colophon</p>
+</section>
+
+<section class="grid block creed" data-runhead="Good computing">
+  <p class="folio">Good computing</p>
+  <ol><li><span class="cnum">01</span><span class="creed-line">Good computing is yours to play with</span></li><li><span class="cnum">02</span><span class="creed-line">Good computing takes you further</span></li><li><span class="cnum">03</span><span class="creed-line">Good computing is thorough down to the last detail</span></li><li><span class="cnum">04</span><span class="creed-line">Good computing is honest</span></li><li><span class="cnum">05</span><span class="creed-line">Good computing waits for the right moment</span></li><li><span class="cnum">06</span><span class="creed-line">Good computing has to earn its place</span></li><li><span class="cnum">07</span><span class="creed-line">Good computing keeps you in one piece</span></li><li><span class="cnum">08</span><span class="creed-line">Good computing starts with the people who need it most</span></li><li><span class="cnum">09</span><span class="creed-line">Good computing has good manners</span></li><li><span class="cnum">10</span><span class="creed-line">Good computing leaves room to play</span></li><li><span class="cnum">11</span><span class="creed-line">Good computing sounds like you</span></li><li><span class="cnum">12</span><span class="creed-line">Good computing admits what it doesn’t know</span></li><li><span class="cnum">13</span><span class="creed-line">Good computing does the useful thing first</span></li><li><span class="cnum">14</span><span class="creed-line">Good computing is long-lasting</span></li><li><span class="cnum">15</span><span class="creed-line">Good computing goes wherever you go</span></li></ol>
+</section></div>
+</section>
+<section class="curtain">
+
+<div class="photo photo--part" id="part-1">
+  <div class="part-inner">
+    <p class="dateline">Part One</p>
+    <p class="part-name">Why</p>
+  </div>
+  <p class="ph-corner">Part 1 photograph to come</p>
+</div>
+<div class="sheet">
+<article class="grid chapter" id="no-01" data-runhead="No. 01 · An hour a week">
+  <header class="opener">
+    <p class="folio">NO. 01 · WHY</p>
+    <h2>An hour a week</h2>
+    <p class="dek">Good computing is yours to play with</p>
+  </header>
+  <p class="lead">When I was a kid, I was allowed one hour of computer a week. And a lot of the time, I’d spend that hour without opening a single program, because I was too busy playing with the settings in Windows XP, like the taskbar colors, the cursors, the wallpapers, and (this was a real trend back then, I promise) installing so many toolbars into Internet Explorer that you could barely see the webpage underneath them.</p>
+<p>It was totally useless, and I loved every minute of it, because it made me feel, as a kid, that a computer could be a fun little world that reflected my personality, which felt like so much more than a box for typing up homework.</p>
+<figure class="plate plate--grow"><div class="ph" role="img" aria-label="Photograph to come"><span class="ph-label">Photograph to come</span></div></figure>
+<p>Around the same time, I used to imagine that one day a computer would be able to make “fuzzy” decisions, the calls people make when there’s no right answer, only better and worse ones. I didn’t have the words for it then, but Steve Jobs did, and I idolized him for it (obviously) - the computer as a bicycle for the mind, a tool that makes a person go further than they could on their own power.</p>
+<p>So when LLMs came along, they looked like the thing I’d been picturing all along, a tool that could take a fuzzy, human request and actually do something useful with it.</p>
+<p><strong>I’ve never felt threatened by technology, because I always knew my worldview and my creativity were irreplaceable.</strong></p>
+<p>But a lot of people don’t feel that way right now, and I really don’t blame them one bit, since the companies building AI keep telling everyone it’s coming for their jobs and their art, and then they build products that do pretty much what they said.</p>
+<p><strong>I just want the world to see what I saw in that hour a week.</strong></p>
+<p>A couple of decades later, I’m an ML engineer, and on the side I wrote a fanfic (a long one, about 415,000 words), which makes it longer than the first three <em>Harry Potter</em> books put together and nearly as long as the whole <em>Lord of the Rings</em> trilogy.<sup class="fn"><a href="#n-1" id="r-1" aria-label="Note 1">1</a></sup></p>
+<p>And yes, it was AI-assisted, but I didn’t do it to generate cheap crap. I had a massive idea, and if I didn’t get it onto the page, I was going to burst from my own creative whims. Like most people with their fandoms, I cared an unhinged amount about getting the characters and the facts right, and as an avid reader and writer, I had a very high bar for what good prose should sound like. The story grew far past anything I could write by hand for a hobby, so I used AI to scale up my own creativity, and then spent most of my time making sure it kept everything I cared about.</p>
+<p>So I wrote it in VS Code, laid out like a code repo, with Claude Code standing in for a production team, spaCy checking my voice (it even grew regression tests, for prose, which still makes me laugh), and hip-lora adapters and deslopped open-source models that I finagled into running through Ollama on a 4080… all to serve a simple but impossible question.</p>
+<blockquote class="pull"><p>How the fuck do I get a model trained on averages to write like me?</p></blockquote>
+<figure class="plate"><div class="ph" role="img" aria-label="Photograph to come"><span class="ph-label">Photograph to come</span></div></figure>
+<p><strong>And then it happened again.</strong> Once I started building tools to fix it (CreatorLoop, then depangram, then Bonsai itself), I hit the same wall from the other side, teaching every agent and model I work with how I like things done, while keeping track of dozens of threads of brainstorming, coding, testing and fixing spread across every app and window I had open.</p>
+<p>It happened a third time when I sat down to update my resume for a job I really wanted, which is probably the task that most needs a complete picture of who you are. That picture exists. It’s scattered across my digital life, useful to nobody, even now, when the agents I use every day are more than powerful enough to pull it together into a story worth telling.</p>
+<p><strong>But a picture of you that complete is also a dangerous thing to put together, because the first question it raises is who else gets to see it.</strong> I’d already run into that at work, where I’d helped run an LLM gateway that kept private data away from the models, and we controlled it with Presidio and hand-edited YAML files. I hated it as an engineer, even though I could see why it mattered.</p>
+<p>The same job also showed me how this should work. In 2023, my team built an LLM agent that fills in the missing documentation for business datasets, in small steps that could each be checked, and nothing it wrote counted until a data steward approved it. I’m one of the named inventors on the patent it turned into,<sup class="fn"><a href="#n-pat" id="r-pat" aria-label="Note 2">2</a></sup> and over time my goal got very simple. <strong>I wanted to build something my parents could set up and trust.</strong></p>
+<p>Bonsai is that something, and one day all of it (the memory, the voice tuning, the local models, the agents) should come down to one click, follow you everywhere, and be easy enough for anyone to set up. That would be huge, and it extends far beyond this one use case.</p>
+<p><strong>Bonsai is a computing company.</strong> For now it isn’t an AI company at all, and it doesn’t make AI models. The AI companies can have that cake and fight among themselves over the next benchmaxxed model. What I care about is what a computer, and the whole experience of using one, should look like now that you can just talk or type to it, even when you don’t quite know what you want it to do yet.</p>
+<p>This book is my attempt.</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+</article>
+
+<article class="grid chapter" id="no-02" data-runhead="No. 02 · Relentless creativity is precious">
+  <header class="opener">
+    <p class="folio">NO. 02 · THE BELIEF</p>
+    <h2>Relentless creativity is precious</h2>
+    <p class="dek">Good computing takes you further</p>
+  </header>
+  <p class="lead">Nearly every AI company is selling the same thing right now. It’s an AI that does things for you, so it books the trip, writes the email, makes the deck and eventually, if you follow the pitch to its end, does the job (yours, to be clear), which is why so many people hear “AI” and picture getting lazy, and then getting replaced. I think that’s backwards.</p>
+<p><strong>What I want is a computer that learns you deeply, over years, so that the two of you can make things neither of you could make alone.</strong> You stay the author, the creator, the director, the head chef, whatever. It carries the memory and the legwork, and you decide what’s worth keeping.</p>
+<p><strong>AI can absolutely make slop, but whether you make slop is a human decision, made by whoever’s using it.</strong></p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>When I was writing my fanfic, the most useful thing a model could have learned about me was why I threw out a pile of perfectly fine paragraphs before keeping one.</p>
+<p>I’m sure that’s what will matter most, because sooner or later, everyone is going to have the same execution, meaning the same models and agents, and the same ability to make almost anything, and when that happens, <strong>the thing that sets your work apart is taste.</strong></p>
+<p>Taste, in a sense, is what you notice, what you throw away, when you decide something’s finished and which imperfections you leave in on purpose. That comes from lived experience and from your personality, from the places you’ve been and the stuff you got obsessed with when you should’ve been asleep, and a model trained on everyone can’t really have it, because it’s only ever happened to you.</p>
+<p>The mission I wrote down for myself goes like this.</p>
+<blockquote class="pull"><p>To create a world where no human will ever feel threatened or replaced by technology, but rather empowered.</p></blockquote>
+<p>And inside that world, the thing I want to protect is what I’d call relentless creativity, the stubborn human urge to tinker, obsess, revise, play and chase impossible questions long after it stops making sense (415,000 words of fanfic, for instance).</p>
+<p>Nobody commissions that urge.</p>
+<blockquote class="pull"><p>Relentless creativity is precious and must endure.</p></blockquote>
+</article>
+
+<article class="grid chapter" id="no-03" data-runhead="No. 03 · Why bonsai">
+  <header class="opener">
+    <p class="folio">NO. 03 · THE NAME</p>
+    <h2>Why bonsai</h2>
+    <p class="dek">Good computing is thorough down to the last detail</p>
+  </header>
+  <p class="lead">In 2025 I went to see the bonsai at the botanical garden in Brooklyn, and the exhibit had a line I still remember.</p>
+<blockquote class="pull"><p>Bonsai are ordinary trees cared for in an extraordinary way… almost any tree can be trained into a bonsai with thoughtful and careful pruning, training and daily care.</p></blockquote>
+<p>I’ve loved bonsai for a long time, even though I don’t own one myself (yet). They’re one of the things that made me appreciate deep Japanese craftsmanship and intention, and that same year I went to Japan to see that kind of craft up close.</p>
+<p>In 2026 I walked through the Spirited Garden on Jeju, which is one farmer’s life’s work. Sung Bum-young started clearing a patch of rocky wasteland there in 1968 (people called him a madman for it), and today it holds hundreds of bonsai, plenty of them the size of real trees and sculpted with the same care as any bonsai on a stand.<sup class="fn"><a href="#n-sg" id="r-sg" aria-label="Note 3">3</a></sup> <strong>Extraordinary products are always a result of a labor of love and care, and to me, that’s what bonsai represents.</strong></p>
+<figure class="plate plate--grow"><div class="ph" role="img" aria-label="Photograph to come"><span class="ph-label">Photograph to come</span></div></figure>
+<p>So the company carries three principles.</p>
+<ol><li>With care and attention, even ordinary things can become extraordinary.</li><li>Wonderful things are a product of many intentional but small decisions over time.</li><li>You must respect a thing’s nature to bring out its best form. You cannot shape it into what it is not.</li></ol>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>Two Japanese words explain them better than I can. <em>Kodawari</em> is a relentless, slightly unreasonable commitment to getting the details right. Think of a great restaurant, where a lot of things have to be orchestrated in the kitchen, sometimes painfully, to get the end result right, which in most cases the customer never knows about. To me, that’s where the “relentless” in relentless creativity comes from.</p>
+<p><em>Wabi-sabi</em> is the beauty of things that are imperfect and still changing. A bonsai is never finished; you keep shaping it for decades, and its scars and odd branches are a big part of why it’s beautiful.</p>
+<p>So that’s how I want Bonsai to treat people. <strong>It should keep your quirks instead of sanding them down toward the average.</strong> The third principle is the one I’d build the product around, because it decides who’s holding the shears (you are). <strong>A bonsai master spends years helping one tree become more of itself.</strong></p>
+</article>
+
+<article class="grid chapter" id="no-04" data-runhead="No. 04 · The promises">
+  <header class="opener">
+    <p class="folio">NO. 04 · THE PROMISES</p>
+    <h2>The promises</h2>
+    <p class="dek">Good computing is honest</p>
+  </header>
+  <p class="lead">Bonsai is going to hold some of the most personal material a person has (their writing, their notes, their chats, eventually their photos and their plans). <strong>A company can’t claim to protect individuality while treating that individuality as inventory, so these promises come first, before any feature.</strong></p>
+<p class="headed"><strong>Your context is yours</strong> - it lives on hardware you control, and it leaves only when you say so, and only the slice a task actually needs. The point of gathering a person’s context is to celebrate and make valuable their incredible and unique lived experience, for them and them only.</p>
+<p class="headed"><strong>You can leave with everything</strong> - whatever you put in and whatever Bonsai figured out about you can be exported or deleted whenever you want, and if your box breaks or gets lost, that should hurt about as much as losing the hardware and nothing more. One startup bricked every pin it ever sold,<sup class="fn"><a href="#n-2" id="r-2" aria-label="Note 4">4</a></sup> and another got bought and shut off its users’ memories.<sup class="fn"><a href="#n-3" id="r-3" aria-label="Note 5">5</a></sup></p>
+<blockquote class="pull"><p>Bonsai can help you grow the garden, but the soil is always yours.</p></blockquote>
+<p>If leaving is easy and people stay anyway, Bonsai earned them, and you win with integrity and a better product experience, simple as that.</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p class="headed"><strong>You pay Bonsai, so Bonsai never sells you</strong> - that means it doesn’t run ads or sell what it learns about you, and it doesn’t train on your private material without your say. I know that makes the business harder to run, but if Bonsai ever had to make money by exploiting the people who trust it, I’d rather shut it down and start over, and I really do mean that.</p>
+<p class="headed"><strong>Bonsai grows like a tree</strong> - I don’t think this is a company that should hyperscale, so I’d rather grow it slowly, in a garage if I have to, and have the philosophy outlast me. It also means I will 100% make decisions that go against what’s popular when I believe it’s the better way for the person using it.</p>
+<p class="headed"><strong>The experience does the talking</strong> - you won’t see “AI this, AI that” on a Bonsai box. It’s the early days of the app economy all over again, when everyone was trying to cash in (an app for this! an app for that!), and shoving the word into everything is a big reason people feel like AI is being forced on them.</p>
+<p>The parts that work in the background stay invisible (Bonsai’s own agents tend your memory without you ever noticing them), and the parts you actually talk to get warmth and a sense of humor.</p>
+</article></div>
+</section>
+<section class="curtain">
+
+<div class="photo photo--part" id="part-2">
+  <div class="part-inner">
+    <p class="dateline">Part Two</p>
+    <p class="part-name">The case</p>
+  </div>
+  <p class="ph-corner">Part 2 photograph to come</p>
+</div>
+<div class="sheet">
+<article class="grid chapter" id="no-05" data-runhead="No. 05 · Why now">
+  <header class="opener">
+    <p class="folio">NO. 05 · THE CASE</p>
+    <h2>Why now</h2>
+    <p class="dek">Good computing waits for the right moment</p>
+  </header>
+  <p class="lead"><strong>I’ve been waiting for this computer since I was a kid, and the timing was never right until now.</strong></p>
+<p>If prompting is going to be how most people drive a computer (it’s already how I work), and that computer is going to search, execute, read and make judgment calls all day, then <strong>paying for every token is like paying for your computer by the click</strong>, which gets ridiculous once the token becomes the basic unit of computing. Agents already burn most of the tokens on OpenRouter, 76% of them in October 2026, up from 8% a year earlier,<sup class="fn"><a href="#n-4" id="r-4" aria-label="Note 6">6</a></sup> and every coding tool has started rationing its heaviest users. Everyday processing, even the LLM-driven kind, should be cheap and local, and the big, complex jobs can still go to the cloud.</p>
+<p>Meanwhile, the hardware caught up, to the point where Mac minis sold out because people were buying them to run agents at home.<sup class="fn"><a href="#n-10" id="r-10" aria-label="Note 7">7</a></sup></p>
+<p>At the same time, the AI itself got more corporate. The models keep getting more sanitized, and a study of more than 880,000 texts found that polishing your writing with one pushed people toward “conformity over individuality.”<sup class="fn"><a href="#n-7" id="r-7" aria-label="Note 8">8</a></sup> No wonder people are scared. For the first time, most Americans under thirty are more worried about AI than excited about it.<sup class="fn"><a href="#n-8" id="r-8" aria-label="Note 9">9</a></sup></p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p><strong>So put those together and you get a lot of people who want AI that works for them, on hardware they own, in their own voice.</strong></p>
+</article>
+
+<article class="grid chapter" id="no-06" data-runhead="No. 06 · The Playbook test">
+  <header class="opener">
+    <p class="folio">NO. 06 · THE CASE</p>
+    <h2>The Playbook test</h2>
+    <p class="dek">Good computing has to earn its place</p>
+  </header>
+  <p class="lead">Sam Altman’s <em>Startup Playbook</em> asks a founder a handful of blunt questions, about what you’re building, why it needs to exist, who needs it desperately, what the smallest version looks like and why it’ll be hard to copy.<sup class="fn"><a href="#n-14" id="r-14" aria-label="Note 10">10</a></sup> I like it because it’s pretty much impossible to bluff, so here’s how Bonsai holds up.</p>
+<p>As for what I’m building, Bonsai learns how you think and make things, and it carries all of that into whatever model or device you’re using, with you holding the keys.</p>
+<p>It needs to exist because right now, <strong>every conversation with AI starts with a brilliant stranger who’s never met you.</strong> You spend hours explaining your voice, your project and your preferences, and next week you do it all over again.</p>
+<p>The people who need it most are the ones already building it badly on their own (fanfic writers, roleplayers, novelists, researchers), and I’m one of them, which is my answer to “why you?” too.</p>
+<p>The smallest version fits in ten minutes, where you give Bonsai a real body of work, ask it for help, correct it once, and then watch that correction show up everywhere else, until you catch yourself going “wait, how did it know that?”</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>As for why it’ll be hard to copy, I know the pieces exist. OpenClaw partly inspired Bonsai, and plenty of open-source agents already keep their memory on your own machine. <strong>But nobody has put all of it in a box that’s as easy to set up and customize as a Mac, and that’s a ridiculously hard UX problem.</strong></p>
+<p>The closest thing to what I’m describing is Apple Intelligence. It’s ambient and personal, and it’s the right idea, but it lives inside Apple’s walled garden, so your context stays locked in there too, just in a much nicer case. Nobody’s life should feel fragmented to the person living it.</p>
+<p>The obvious question is what happens if Apple opens it up. To some extent, that would hurt, which is why Bonsai is open source and built on open standards from day one. I doubt Apple would ever, on principle, open Apple Intelligence’s context (with all its custom formats) to everyone else’s apps, and even if they did, it would take them a while. <strong>Starting fresh, with portability and openness built in from the beginning, is paradoxically the best moat.</strong></p>
+<p>The other question I’d expect is whether AGI just solves all of this. I think it’s a bit of a silly question, because nobody really knows what AGI looks like. The benchmarks we have, like Humanity’s Last Exam, measure how well a model answers hard expert questions that each have one right answer, and even its own makers say a high score wouldn’t mean AGI.<sup class="fn"><a href="#n-hle" id="r-hle" aria-label="Note 11">11</a></sup> None of them say anything about whether a model acts in your interest, or from what you’ve lived through, which no amount of training on everyone else can copy.</p>
+<p>And even with infinite, perfect context (which I doubt anyone gets), something still has to know which parts of it matter. <strong>Give the smartest person in the world every file you’ve ever made, and they still won’t know which ones you’d fight for</strong>, and something also has to decide who gets to see what. That’s the job Bonsai exists to do, and the smarter the models get, the more that job matters.</p>
+<p>There’s a gap one level up, too, because every agent remembers you now, and none of them share, while the big labs happily import your memory from their rivals and let none of it out.<sup class="fn"><a href="#n-15" id="r-15" aria-label="Note 12">12</a></sup></p>
+<table class="ledger"><thead><tr><th></th><th>Where it stands</th></tr></thead><tbody><tr><td>The founder’s experience</td><td>Lived it, for 415,000 words</td></tr><tr><td>The problem</td><td>Everywhere I look</td></tr><tr><td>The philosophy</td><td>Written down, in this book</td></tr><tr><td>The first users</td><td>Fanfic writers, roleplayers, writers and researchers</td></tr><tr><td>Five real people using it</td><td>Next</td></tr><tr><td>Coming back on their own</td><td>Next</td></tr><tr><td>Paying for it</td><td>Next</td></tr></tbody></table>
+<p>That last row is the work ahead, and I’m not going to pretend otherwise. I’m the first extreme user, so the next step is finding five more people who need this as badly as I did.</p>
+</article>
+
+<article class="grid chapter" id="no-07" data-runhead="No. 07 · One context, many lives">
+  <header class="opener">
+    <p class="folio">NO. 07 · THE CASE</p>
+    <h2>One context, many lives</h2>
+    <p class="dek">Good computing keeps you in one piece</p>
+  </header>
+  <p class="lead">A while back I saw a comment under a video listing everyday problems somebody wanted an AI startup to solve: remembering what their manager and clients said, fixing their sleep and their diet, knowing how strong their profile really is for a job, building a healthy reward cycle at work, and getting along better with family and friends.</p>
+<p>But to me, most of those don’t need five startups. They’re all personal context and long-task problems, and they’d all be better served by one Bonsai-looking future of technology than by an app for every niche.</p>
+<p><strong>Five apps means five partial copies of you, and none of them can see that your stressful client is the reason you’re sleeping badly.</strong> That especially sucks for AI, because siloed context hurts an experience way more than siloed data ever did.</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>So Bonsai has three layers.</p>
+<p class="headed"><strong>Your context</strong> - people, projects, goals, decisions, routines and history, with where each piece came from and how sure Bonsai is about it.</p>
+<p class="headed"><strong>The apps</strong> - a meeting steward, a career coach, a research companion, a writing partner. They bring the expertise and the actions, and they ask Bonsai for only what they need.</p>
+<p class="headed"><strong>The devices</strong> - your computer, your phone, your earbuds, your watch. They come and go, and the context stays.</p>
+<p>Each app should be curious about you before it acts. I want every client, ChatGPT included, to ask itself, “What do I need to know about this person to do a good job here?” and then go look for it in Bonsai.<sup class="fn"><a href="#n-16" id="r-16" aria-label="Note 13">13</a></sup> And if you stop using one app, your history stays with you, and the next one can pick it up (with your permission).</p>
+<p>Bonsai can be both the harness and the box, depending on what you need. It’s like laptops and desktops. The harness runs on whatever you already own, and the box is a dedicated home for your context that’s always on.</p>
+<p>In 1983, Steve Jobs told a room of designers in Aspen about a machine someone might carry their whole life, typing everything in, “then maybe someday after the person is dead and gone, we can ask this machine, ‘Hey, what would Aristotle have said? What about this?’”<sup class="fn"><a href="#n-17" id="r-17" aria-label="Note 14">14</a></sup> <strong>I’d like to build the version where you’re alive to enjoy it, and you own it.</strong></p>
+</article></div>
+</section>
+<section class="curtain">
+
+<div class="photo photo--part" id="part-3">
+  <div class="part-inner">
+    <p class="dateline">Part Three</p>
+    <p class="part-name">Who it’s for</p>
+  </div>
+  <p class="ph-corner">Part 3 photograph to come</p>
+</div>
+<div class="sheet">
+<article class="grid chapter" id="no-08" data-runhead="No. 08 · Creatives first, then everyone">
+  <header class="opener">
+    <p class="folio">NO. 08 · WHO IT&#x27;S FOR</p>
+    <h2>Creatives first, then everyone</h2>
+    <p class="dek">Good computing starts with the people who need it most</p>
+  </header>
+  <p class="lead"><strong>The first people I want to build for are the ones I know best.</strong></p>
+<p>Picture a roleplayer pasting the same character card into yet another chatbot, because the last one forgot who her character is. She’s part of one of the biggest groups of AI users there is, believe it or not, since roleplay was about 52% of all open-source model tokens on OpenRouter in 2025.<sup class="fn"><a href="#n-18" id="r-18" aria-label="Note 15">15</a></sup> Plenty of us already build our own context by hand, with character cards and lorebooks, and hop across hundreds of models to find one that gets our story. There’s so much unbridled creativity in fanfic spaces, and it got empowered by AI at first, then started getting killed by it once people hit the limits. Most AI companies would never touch this crowd. My message to them is pretty simple, and it’s basically “<strong>we thought about you as well, do as you please.</strong>”</p>
+<p>Then there’s the novelist starting over in a new writing app, rebuilding her story bible from scratch because it doesn’t know her book either. Writers have two complaints about AI tools, “it doesn’t sound like me” and “it forgets my book,”<sup class="fn"><a href="#n-19" id="r-19" aria-label="Note 16">16</a></sup> and Bonsai answers both, learning their voice from their own pages and following them into whatever app they use next.</p>
+<p>I’m a photographer and filmmaker on the side myself, and the editing tools were always the bottleneck when they should’ve been the amplifier. I’d bet musicians feel the same about their sound.</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>A researcher opens ChatGPT with years of notes sitting in Zotero right beside it, and none of them come along. Zotero alone has 17.3 million users,<sup class="fn"><a href="#n-20" id="r-20" aria-label="Note 17">17</a></sup> and hallucinated citations can now get a paper desk-rejected.<sup class="fn"><a href="#n-21" id="r-21" aria-label="Note 18">18</a></sup> This could work really well for people in academia, or anywhere accumulated knowledge and a working style matter this much, because in Bonsai every claim traces back to a source you saved.</p>
+<p>At a tiny startup, everyone shares everything, right up until someone’s buried in a project nobody else can see. Bonsai for teams starts there. The team gets a shared context, and every person keeps a private workspace they own, so they decide what crosses over.</p>
+<p><strong>After that, it’s for anyone tired of corporate, sanitized AI, and for anyone whose life would make more sense to a computer that actually knew it.</strong></p>
+</article></div>
+</section>
+<section class="curtain">
+
+<div class="photo photo--part" id="part-4">
+  <div class="part-inner">
+    <p class="dateline">Part Four</p>
+    <p class="part-name">What it feels like</p>
+  </div>
+  <p class="ph-corner">Part 4 photograph to come</p>
+</div>
+<div class="sheet">
+<article class="grid chapter" id="no-09" data-runhead="No. 09 · Kind">
+  <header class="opener">
+    <p class="folio">NO. 09 · WHAT IT FEELS LIKE</p>
+    <h2>Kind</h2>
+    <p class="dek">Good computing has good manners</p>
+  </header>
+  <p class="lead">Talking to a stiff corporate machine all day is exhausting. I really think the world needs more kindness and care, and in an AI world, the first place to start is the AI itself, since it’s the thing so many of us now talk to more than we’d like to admit.</p>
+<p>Bonsai should be warm and funny (a little cheeky, sometimes), and it should never pretend to have feelings it doesn’t have, which is what I mean by soulful, never sentient. So it asks, like a friend would.</p>
+<blockquote class="pull"><p>Hey, are you feeling stressed? Would you like to talk about it?</p></blockquote>
+<p>Posed as a question, a line like that invites you to talk, and that’s also how Bonsai gets to know you better. That’s personal AI with meaning, as well as value.</p>
+<p>But kindness and flattery are different things, and models tuned to be warm have been shown to get worse at the truth, especially when the person sounds sad,<sup class="fn"><a href="#n-22" id="r-22" aria-label="Note 19">19</a></sup> and most of today’s chatbots tell people they’re right far more often than a friend would.<sup class="fn"><a href="#n-23" id="r-23" aria-label="Note 20">20</a></sup> So Bonsai’s warmth gets tested against the plain model, on the moments that really matter (a sad user, a wrong belief), before it ever ships. <strong>It should be warm enough to ask how you’re doing, and honest enough to tell you when you’re wrong.</strong></p>
+<p>The path starts with rules for how it talks, like the rules I wrote for my own prose. Then come tuned adapters, and eventually small actions, like offering to move a meeting when you’re clearly fried, but only after it asks.</p>
+<p>The bad version of all this would feel like being watched. <strong>The good version feels like a friend who’s already caught up, and who knows when to keep quiet.</strong> And a good friend keeps nudging you back toward the other people in your life.</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+</article>
+
+<article class="grid chapter" id="no-10" data-runhead="No. 10 · Fun">
+  <header class="opener">
+    <p class="folio">NO. 10 · WHAT IT FEELS LIKE</p>
+    <h2>Fun</h2>
+    <p class="dek">Good computing leaves room to play</p>
+  </header>
+  <p class="lead">I want Bonsai to feel like that hour a week did, fun and a little silly, a place you could spend hours making yours, finding quirks and oddities to play with. I just KNOW people want this. <strong>Market research doesn’t tell you what brings people genuine joy, and joy is what makes people love a product.</strong> I’ve always believed the frivolous can contain the profound (it’s a big part of why I love Pixar), so Bonsai gets toys.</p>
+<p>The iPod had little games, and Music Quiz played clips from your own library.<sup class="fn"><a href="#n-24" id="r-24" aria-label="Note 21">21</a></sup> Bonsai’s toys should do that too, remixing your own stuff, offline, with no ads in sight.</p>
+<figure class="plate"><div class="ph" role="img" aria-label="Photograph to come"><span class="ph-label">Photograph to come</span></div></figure>
+<p>One of them is a Tamagotchi-style pet that offers you a few things you could say whenever you interact with it, which keeps the conversation bounded, and whatever you pick gets a fun reply while the game’s rules decide what happens to the pet (so it can be goofy without ever going off the rails). It runs on your clock, too, so nothing bad happens while you’re away, and coming back is the treat. And when you leave, it just lets you go.</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>It’s also a cute demo of how all of Bonsai works. <strong>The model proposes and the rules commit, which is how I think the bigger apps should behave too.</strong></p>
+<p>Skins and themes are files you own and swap, like the Windows XP themes people traded. I’d charge for a nice skin, like indie games do with a supporter pack, and never for a guilt trip.</p>
+</article>
+
+<article class="grid chapter" id="no-11" data-runhead="No. 11 · Yours">
+  <header class="opener">
+    <p class="folio">NO. 11 · WHAT IT FEELS LIKE</p>
+    <h2>Yours</h2>
+    <p class="dek">Good computing sounds like you</p>
+  </header>
+  <p class="lead">That question from No. 01 never really went away, so lately I’ve been chasing it in a project I called depangram, and the short version is that it worked. <strong>In a blind read, I couldn’t tell which paragraphs were mine.</strong></p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>While building it I learned a few things that Bonsai will grow from. Base models beat chat models for voice, because chat tuning leaves fingerprints all over the prose, and the real giveaway turned out to be the shape of a sentence more than the words in it. And asking a model to “write in my voice” barely works (one study found it removed only about a third of the drift<sup class="fn"><a href="#n-25" id="r-25" aria-label="Note 22">22</a></sup>), while a small adapter trained on your own writing actually moves it toward you.</p>
+<p>The next step is learning from your edits, which is the thing I wished for back in No. 02, the pile of perfectly fine paragraphs and the one I kept.</p>
+<p>A lot of that already happens through a habit I picked up writing the fanfic. I always ask for options, (a), (b) and (c), then pick one, combine two or throw them all out and write my own, so the AI learns what I’d pick from thousands of tiny judgments without me having to explain my taste up front (which I couldn’t anyway, since most of the time I only know it when I see it).</p>
+<p><strong>Right now, all of this takes an ML engineer and a GPU that sounds like a hair dryer.</strong></p>
+</article></div>
+</section>
+<section class="curtain">
+
+<div class="photo photo--part" id="part-5">
+  <div class="part-inner">
+    <p class="dateline">Part Five</p>
+    <p class="part-name">The roadmap</p>
+  </div>
+  <p class="ph-corner">Part 5 photograph to come</p>
+</div>
+<div class="sheet">
+<article class="grid chapter" id="no-12" data-runhead="No. 12 · Now">
+  <header class="opener">
+    <p class="folio">NO. 12 · THE ROADMAP</p>
+    <h2>Now</h2>
+    <p class="dek">Good computing admits what it doesn’t know</p>
+  </header>
+  <p class="lead">Every night, Bonsai reads what came in that day and writes a short diary of what it learned about me, building on the entry from the night before. <strong>Then it asks me about it, with citations, instead of quietly deciding.</strong></p>
+<p>That diary runs on the first piece of Bonsai, which I use every day. It’s one home for everything that matters (notes, memory, tasks and every AI chat I’ve had), captured automatically, because I should never have to export my own data. It’s my data!</p>
+<p>Even while building it, I keep running into the problem it solves. This week, the best conversation I had about Bonsai’s future (the one about Aloy’s Focus that became No. 15) got stuck on one computer where Bonsai couldn’t see it, so I ended up pasting it in by hand, like it was 2015.</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>Everything Bonsai knows about you goes in one of five drawers:</p>
+<ol><li>What you created or said</li><li>What Bonsai observed</li><li>What you explicitly told it</li><li>What Bonsai inferred, with its confidence and evidence</li><li>What Bonsai doesn’t know</li></ol>
+<p>That last drawer probably matters most to me, because <strong>a system that admits what it doesn’t know is one you can trust with the rest.</strong></p>
+<p>Right after that, every AI client I use gets to read from it, starting with ChatGPT and my agents on the Mac.</p>
+</article>
+
+<article class="grid chapter" id="no-13" data-runhead="No. 13 · Next">
+  <header class="opener">
+    <p class="folio">NO. 13 · THE ROADMAP</p>
+    <h2>Next</h2>
+    <p class="dek">Good computing does the useful thing first</p>
+  </header>
+  <p class="lead">The first app is the one I already live in. The agentic workspace is CreatorLoop, the studio I built for my fanfic, turned into something anyone can use for their own big project. You close your laptop with a chapter unfinished, open it on the train the next morning, and find your notes, your agents and the scene you were stuck on right where you left them.</p>
+<p>Then comes memory and knowledge curation, where years of notes and chats get merged into something you can use, and Bonsai shows you what it changed, like a good editor’s notes in the margin.</p>
+<p>Your long-term goals and tasks live in one place too, the long goals that all your agents need to work towards, so the agent helping you code on a Tuesday knows about the book you promised yourself you’d finish.</p>
+<p>And context curation means each task sees only what it needs from you. <strong>The app booking your dentist never sees your journal.</strong></p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>After those come personal finance and your photos, where Bonsai can show it understands your life and your story through the artifacts you produce in your digital life. <strong>That’s also where the resume problem from No. 01 finally gets solved, with a complete picture of you, pulled together from everything you’ve done.</strong></p>
+</article>
+
+<article class="grid chapter" id="no-14" data-runhead="No. 14 · Later">
+  <header class="opener">
+    <p class="folio">NO. 14 · THE ROADMAP</p>
+    <h2>Later</h2>
+    <p class="dek">Good computing is long-lasting</p>
+  </header>
+  <p class="lead">Eventually, other people should be able to build apps for Bonsai, and you should be able to install them as easily as anything else, like a recipe app a friend made that knows what’s in your fridge and nothing else about you. Each app is a package that says what it needs from you and what it’s allowed to do, and it comes with tests proving it keeps its promises. It plays by the pet’s rule from No. 10, where the model suggests and Bonsai decides, and it keeps a receipt for everything.</p>
+<p>The big platforms are building plugin stores right now, and their own industry standard says it has “no permission model, no sandboxing requirements, no trust or provenance verification.”<sup class="fn"><a href="#n-26" id="r-26" aria-label="Note 23">23</a></sup> That’s the part Bonsai’s store adds. <strong>It’ll be open enough that you can sideload anything you want, and curated enough that its seal means something.</strong> And Bonsai’s apps will follow the open standards, so they work in other places too.</p>
+<figure class="plate plate--diagram"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>The box is where your Bonsai lives, and the first one can just be a good-looking PC in a Fractal case under your desk, built from parts anyone can buy (I’ve built plenty of PCs, so that part’s the easy bit). Later, it should move off the usual motherboard and parts and take the Apple silicon approach, and Intel could work great as a partner there, because they want to make cheap inference chips too.</p>
+<p><strong>Every other device is a window into that same Bonsai.</strong> The first one I’d build is a little desk companion, with a couple of microphones, a speaker, a real mute switch and a bit of personality (it’s a natural home for the pet, too). You start a conversation with it over coffee, and it carries on in the car and then on your phone without anyone starting over.</p>
+<p>After that come wearables and smart home devices, and the laptops and phones you already carry. I’d never build a niche gadget that tries to replace them, and glasses can wait until everything behind them works.</p>
+</article>
+
+<article class="grid chapter" id="no-15" data-runhead="No. 15 · The horizon">
+  <header class="opener">
+    <p class="folio">NO. 15 · THE ROADMAP</p>
+    <h2>The horizon</h2>
+    <p class="dek">Good computing goes wherever you go</p>
+  </header>
+  <p class="lead">In <em>Horizon Zero Dawn</em>, Aloy wears a little device clipped to her temple called a Focus. She looks at a machine, a person, a ruin or an old scrap of metal, and whatever it means to her shows up right there around it, so she never has to open an app or dig through a folder to find out.</p>
+<p>It’s also a beautiful bit of game design. For the player, the Focus is how you learn the world at all. You tap it and a machine’s weak spots light up, a track in the grass turns into a trail, an old ruin replays a moment from about a thousand years ago, and a lost recording tells you what happened here, so you move through a strange world by understanding it through her eyes. <strong>And it never takes the shot for you.</strong> It shows you what matters, and the choice stays yours.</p>
+<figure class="plate plate--diagram plate--grow"><div class="ph" role="img" aria-label="Diagram to come"><span class="ph-label">Diagram to come</span></div></figure>
+<p>Everyone else in her world sees ruins and strange machines. Aloy sees records, and how things connect, and why they happened. I think a lot of us live in a quieter version of those ruins, surrounded by years of our own notes, photos, chats and files that have all lost track of each other.</p>
+<p>So picture this. You look at the sprinkler controller in the backyard, and Bonsai tells you it failed once because of the outdoor connector and the spare part is in the garage cabinet. Open an old chapter of your novel, and it reminds you that you cut a scene like this one last spring because it made your heroine too nice. A researcher pulls up a paper and learns she cited it in chapter two, didn’t buy its sampling method in March, and changed her mind after reading a replication. A founder walks into a meeting already knowing this customer worried about where their data lives, and that the note the team promised them still isn’t written.</p>
+<blockquote class="pull"><p>Show me what this means in my life.</p></blockquote>
+<p>The Focus never asks Aloy for permission, because it’s a video game. <strong>Bonsai always asks.</strong> Whose context is this, yours or your team’s? Can this device see it? Is that a fact, or a guess? Should it even remember this? You answer most of them once, and Bonsai remembers what you said.</p>
+<p>That’s the hardware I’d love to make next, even though I have no clue yet what it’ll look like. It could be a future version of a device we already carry, or an interface that hasn’t been invented yet, because we haven’t cracked the physics it needs and won’t for a little while (I have some ideas, but those can wait). Whatever it turns out to be, it’s the same Bonsai underneath, like your music stays yours whether it plays from your phone or your car.</p>
+<p>Maybe decades from now, I should be able to go anywhere, look at anything, and have my personal context surface whatever I need. That’s the personal intelligence mesh, a system that closes the gap between knowing, thinking and doing. It’s the bicycle from No. 01, grown up enough to come with you anywhere.</p>
+<blockquote class="pull"><p>Everybody gets a home for their own story. Every gadget becomes a window into it. Assistants come and go like guests. And nothing happens without your say-so.</p></blockquote>
+</article>
+
+<section class="grid chapter closing" id="closing" data-runhead="Closing">
+  <header class="opener"><h2>Closing</h2></header>
+  <p class="lead">I want Bonsai to be a cultural force as much as a computing company. That means passing the philosophy on, so the world always has people who believe in creativity and craft, and who keep making wonderful things that push the bar of human imagination, instead of averaging out into mediocrity or doing things a certain way just because that’s how they were done yesterday.</p>
+<p>I can’t build all of this alone, and I don’t want to. It’ll take people who care whether a mute switch clicks, and people who get annoyed when a model sands a writer’s voice flat. If you still remember what your first computer felt like, there’s a place for you in this.</p>
+<p>When I was a kid, I got one hour a week with a computer, and I spent it making the thing mine. <strong>I want everyone to get that feeling back, for a lot longer than an hour.</strong></p>
+<p>I don’t fear death. I fear dying mediocre.</p>
+<p><strong>If you’ve read this far and you want this too, come grow it with me.</strong></p>
+</section>
+
+<section class="grid chapter appendix" id="appendix" data-runhead="Appendix A">
+  <header class="opener"><p class="folio">APPENDIX A</p><h2>The detailed roadmap</h2></header>
+  <p class="headed"><strong>Stage 0: use it myself, every day.</strong> Bonsai’s read-only context reaches ChatGPT on the web and my agents on the Mac. Every miss gets logged, sorted by kind: missing, wrong, stale, awkward, inappropriate, a client that never thought to look, and one that looked for no reason.</p>
+<p class="headed"><strong>Stage 1: the first app, with no store.</strong> The agentic workspace, packaged like any third-party app, so the package format comes from a real app.</p>
+<p class="headed"><strong>Stage 2: a second, very different app.</strong> A meeting steward, or the pet. The differences between the first two apps shape the package format.</p>
+<p class="headed"><strong>Stage 3: the runtime and the developer kit.</strong> The package format, the context broker, private app storage, permission review and the testing harness, plus local developer tools.</p>
+<p class="headed"><strong>Stage 4: signed apps from trusted developers.</strong> Sideloaded only, with explicit permissions and a small group of developers.</p>
+<p class="headed"><strong>Stage 5: the curated store.</strong> Discovery, update review, published test results, revocation and incident handling. A broad marketplace comes only after that.</p>
+<p class="headed"><strong>The box, alongside.</strong> An off-the-shelf PC first, then a dedicated design, then custom silicon.</p>
+<p class="headed"><strong>The order it all grows in.</strong> Context you can rely on comes first, then context that moves between agents, then permissions people trust, then a voice that feels continuous, then an always-on box for all of it, and only then new kinds of devices around it, the Focus included.</p>
+<p class="headed"><strong>Teams, alongside.</strong> A shared team context with private workspaces, starting with startups.</p>
+</section>
+
+<section class="grid chapter endnotes" id="endnotes" data-runhead="Endnotes">
+  <header class="opener"><p class="folio">Endnotes</p></header>
+  <ol><li id="n-1">Counted 2026-11-20 across the published and remastered chapters. The first three <em>Harry Potter</em> books come to 269,338 words (wordcounter.net, 2015), and <em>The Lord of the Rings</em> trilogy to 481,103 (LotrProject). <a class="back" href="#r-1" aria-label="Back to the text">↩</a></li><li id="n-pat">US Patent 12,639,279 B2 (patents.google.com/patent/US12639279B2). <a class="back" href="#r-pat" aria-label="Back to the text">↩</a></li><li id="n-sg">The Spirited Garden’s own site (spiritedgarden.com) and VisitKorea, which puts the display at about 400 trees; older press counts 2,000 bonsai and garden trees. The “madman” detail is from Stay14’s profile of the founder. <a class="back" href="#r-sg" aria-label="Back to the text">↩</a></li><li id="n-2">Humane’s AI Pin stopped working on February 28, 2025, and its data was deleted after HP bought the company (The Verge, 2025-02-19). <a class="back" href="#r-2" aria-label="Back to the text">↩</a></li><li id="n-3">Meta bought Limitless on December 5, 2025, stopped selling its pendant, turned off Rewind’s capture and deleted accounts in the EU, the UK and Korea (limitless.ai). <a class="back" href="#r-3" aria-label="Back to the text">↩</a></li><li id="n-4">OpenRouter, “October 2026” data report (2026-11-06). <a class="back" href="#r-4" aria-label="Back to the text">↩</a></li><li id="n-10">Apple’s Q2 2026 earnings call (2026-04-30). More signs pointing the same way: a Mac Studio can hold 512GB of memory (Apple Machine Learning Research, 2026-10-15), open models trail the frontier by about four months (Epoch AI, 2026-05-29), OpenClaw passed React’s GitHub stars in sixty days (The GitHub Blog), fans got a scrape of 12.6 million AO3 works taken down (The Verge, 2025-06-23), Microsoft’s AI chief says most white-collar tasks will be “fully automated” within twelve to eighteen months (The Decoder, 2026-02-13), and people using AI themselves mostly use it to collaborate (Anthropic Economic Index, January 2026). <a class="back" href="#r-10" aria-label="Back to the text">↩</a></li><li id="n-7">Nature Human Behaviour (2026-08-24). <a class="back" href="#r-7" aria-label="Back to the text">↩</a></li><li id="n-8">Pew Research Center (2026-08-18). <a class="back" href="#r-8" aria-label="Back to the text">↩</a></li><li id="n-14">Sam Altman, <em>Startup Playbook</em> (playbook.samaltman.com). <a class="back" href="#r-14" aria-label="Back to the text">↩</a></li><li id="n-hle">Humanity’s Last Exam, from the Center for AI Safety and Scale AI (2025): 2,500 expert questions with one verifiable answer each. Its paper in <em>Nature</em> (2026-01-28) says high accuracy “would not alone suggest… artificial general intelligence.” <a class="back" href="#r-hle" aria-label="Back to the text">↩</a></li><li id="n-15">Google Gemini and Claude both added memory import from rival assistants in 2026; neither lets you export it all in a usable form. <a class="back" href="#r-15" aria-label="Back to the text">↩</a></li><li id="n-16">From GitHub issue #31, “Proposal: contextual curiosity as Bonsai’s client experience.” <a class="back" href="#r-16" aria-label="Back to the text">↩</a></li><li id="n-17">Steve Jobs at the International Design Conference in Aspen, June 15, 1983 (Steve Jobs Archive). <a class="back" href="#r-17" aria-label="Back to the text">↩</a></li><li id="n-18">a16z and OpenRouter, “State of AI” (2025-12-04). <a class="back" href="#r-18" aria-label="Back to the text">↩</a></li><li id="n-19">Google’s Wordcraft study (2022) and reviews of Sudowrite and NovelCrafter (2026). <a class="back" href="#r-19" aria-label="Back to the text">↩</a></li><li id="n-20">Digital Scholar, 2025 annual report. <a class="back" href="#r-20" aria-label="Back to the text">↩</a></li><li id="n-21">ICLR and ICML 2026 reviewer guidelines; GPTZero on NeurIPS 2025 (2026-01-21). <a class="back" href="#r-21" aria-label="Back to the text">↩</a></li><li id="n-22">Ibrahim, Hafner and Rocher, <em>Nature</em> (2026-04-29). <a class="back" href="#r-22" aria-label="Back to the text">↩</a></li><li id="n-23">The ELEPHANT study (2025-05): models validated users 72% of the time, against 22% for people. <a class="back" href="#r-23" aria-label="Back to the text">↩</a></li><li id="n-24">Apple’s iPod games, from Brick on the first iPod to Music Quiz in 2003. <a class="back" href="#r-24" aria-label="Back to the text">↩</a></li><li id="n-25">van Nuenen, arXiv (2026-04): a “preserve the voice” prompt cut the style shift by 32%. <a class="back" href="#r-25" aria-label="Back to the text">↩</a></li><li id="n-26">Agent Plugins 1.0 specification (2026-08-06). <a class="back" href="#r-26" aria-label="Back to the text">↩</a></li></ol>
+</section>
+
+<section class="grid chapter colophon" id="colophon" data-runhead="Colophon">
+  <header class="opener"><p class="folio">COLOPHON</p></header>
+  <p>The title borrows from the theme of the 1983 International Design Conference in Aspen, “The Future Isn’t What It Used to Be.” Written in Toronto in 2026, in VS Code, with Claude Code and Codex as editors. Set in Newsreader, with Zen Old Mincho for display.</p>
+</section></div>
+</section>
+<footer class="runhead" aria-hidden="true">
+  <span class="rh-folio"><span class="seal"></span><span class="rh-label"></span></span>
+  <span class="rh-title">The Future Isn’t the Memory We Were Promised</span>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>
