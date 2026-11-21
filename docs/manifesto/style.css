@@ -1,0 +1,517 @@
+/* The Future Isn't the Memory We Were Promised
+   A monograph you scroll. Hara and Tanaka for the restraint, the Opus 5.5 page for the curtain. */
+
+:root {
+  --paper: #F4F0E6;
+  --paper-rgb: 244 240 230;
+  --glass: 26vh;           /* the frosted band at the top of each sheet */
+  --ink: #1E1C19;
+  --body: #2B2722;
+  --muted: #675F54;
+  --rule: #C9C1B2;
+  --ph: #E4DED1;          /* placeholder frame */
+  --ph-ink: #8A8174;
+  --tangerine: #C2602B;
+  --photo: #EEDDCA;        /* the warm photo band from the RE-DESIGN spread */
+  --on-photo: #1E1C19;
+
+  --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --display: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --gutter: 16px;
+  --measure: 650px;
+  color-scheme: light only;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--body);
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+@media (min-width: 900px) { body { font-size: 1.1875rem; } }
+
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+::selection { background: var(--tangerine); color: var(--paper); }
+
+/* ---------- the curtain ---------- */
+
+.curtain { position: relative; }
+.photo {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  z-index: 0;
+  background: var(--photo);
+  color: var(--on-photo);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+/* film grain, as on the Opus 5.5 page */
+.photo::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.1  0 0 0 0 0.08  0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.16;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  z-index: 2;
+}
+.sheet {
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
+}
+
+/* ---------- the glass edge ----------
+   The top of each sheet is frosted glass that clears into paper, so the photo
+   behind it blurs and fades instead of getting cut off. In Chromium the very
+   lip also refracts (an SVG displacement filter, #liquid in the page). */
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (prefers-reduced-transparency: no-preference) and (prefers-reduced-motion: no-preference) {
+    .sheet {
+      background: linear-gradient(to bottom, transparent var(--glass), var(--paper) var(--glass));
+      padding-top: 10vh;
+    }
+    .sheet::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--glass);
+      z-index: -1;
+      pointer-events: none;
+      -webkit-backdrop-filter: blur(18px) saturate(1.05);
+      backdrop-filter: blur(18px) saturate(1.05);
+      background: linear-gradient(to bottom,
+        rgb(var(--paper-rgb) / 0.08) 0%,
+        rgb(var(--paper-rgb) / 0.45) 40%,
+        rgb(var(--paper-rgb) / 0.9) 75%,
+        var(--paper) 100%);
+      -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.35), #000 30%);
+      mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.35), #000 30%);
+    }
+    /* the liquid lip: a thin refracting strip with a highlight along the top */
+    .has-liquid .sheet::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5.5rem;
+      z-index: -1;
+      pointer-events: none;
+      backdrop-filter: url(#liquid) blur(1.5px) saturate(1.05) brightness(1.03);
+      border-top: 1px solid rgb(255 255 255 / 0.75);
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+      -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
+      mask-image: linear-gradient(to bottom, #000 40%, transparent);
+    }
+    @media (max-width: 899px) {
+      :root { --glass: 20vh; }
+      .sheet::before { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    }
+
+    /* full liquid glass (?glass=full): the lip is a tapered glass bevel.
+       ::before is the lens. It covers the whole band at full strength and pulls
+       the backdrop into the bevel, with a colored fringe at the rim only, so the
+       photo never shows through twice. ::after is the frost, which builds up
+       gradually below the bevel and settles into paper. Chromium only; other
+       browsers keep the frosted fade above. The bevel map is drawn in site.js. */
+    :root[data-glass="full"].has-liquid { --glass: 30vh; }
+    [data-glass="full"].has-liquid .sheet { padding-top: 12vh; }
+    [data-glass="full"].has-liquid .sheet::before {
+      backdrop-filter: url(#glass-bevel) saturate(1.08) brightness(1.03);
+      background: linear-gradient(to bottom,
+        rgb(255 255 255 / 0.75) 0,
+        rgb(255 255 255 / 0.22) 2px,
+        rgb(255 255 255 / 0.08) 1.25rem,
+        transparent 3.5rem);
+      -webkit-mask-image: none;
+      mask-image: none;
+    }
+    [data-glass="full"].has-liquid .sheet::after {
+      height: var(--glass);
+      border-top: 0;
+      box-shadow: none;
+      backdrop-filter: blur(16px) saturate(1.05);
+      background: linear-gradient(to bottom,
+        rgb(var(--paper-rgb) / 0) 0,
+        rgb(var(--paper-rgb) / 0.25) 35%,
+        rgb(var(--paper-rgb) / 0.75) 70%,
+        var(--paper) 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 4rem, rgb(0 0 0 / 0.5) 45%, #000 80%);
+      mask-image: linear-gradient(to bottom, transparent 4rem, rgb(0 0 0 / 0.5) 45%, #000 80%);
+    }
+  }
+}
+
+.ph-corner {
+  position: absolute;
+  left: var(--gutter);
+  bottom: 1.25rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+@media (min-width: 900px) { .ph-corner { left: 2.5rem; bottom: 2rem; } }
+
+/* ---------- title hero ---------- */
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  width: min(100% - 2 * var(--gutter), 62rem);
+  text-align: center;
+  padding-top: 6vh;
+}
+.dateline {
+  margin: 0 0 1.75rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+h1 {
+  margin: 0 auto;
+  max-width: 14em;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(2.2rem, 5.2vw, 4.75rem);
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  color: var(--on-photo);
+  text-wrap: balance;
+}
+.hero-dek {
+  margin: 1.5rem auto 0;
+  font-style: italic;
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
+  color: #5A5249;
+  text-wrap: balance;
+}
+.leaders {
+  list-style: none;
+  margin: clamp(2.5rem, 8vh, 5rem) auto 0;
+  padding: 0;
+  width: min(100%, 24rem);
+  font-size: 0.95rem;
+}
+.leaders a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.18rem 0;
+  text-decoration: none;
+}
+.lnum { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; }
+.dots { flex: 1; border-bottom: 1px dotted currentColor; opacity: 0.45; transform: translateY(-0.3em); }
+.leaders a:hover .lname, .leaders a:focus-visible .lname { text-decoration: underline; text-underline-offset: 0.2em; }
+
+/* ---------- part openers ---------- */
+
+.part-inner { position: relative; z-index: 1; text-align: center; padding: 0 var(--gutter); }
+.part-name {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(2.6rem, 7.5vw, 6.25rem);
+  line-height: 1.05;
+}
+
+/* ---------- the grid ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns:
+    [full-start] minmax(var(--gutter), 1fr)
+    [main-start wide-start] minmax(0, var(--measure))
+    [main-end wide-end] minmax(var(--gutter), 1fr)
+    [full-end];
+}
+@media (min-width: 1000px) {
+  .grid {
+    /* centered column; plates and pull quotes widen evenly on both sides */
+    grid-template-columns:
+      [full-start] minmax(3rem, 1fr)
+      [wide-start] minmax(0, 6rem)
+      [main-start] var(--measure)
+      [main-end] minmax(0, 6rem)
+      [wide-end] minmax(3rem, 1fr)
+      [full-end];
+  }
+}
+.grid > * { grid-column: main; min-width: 0; }
+
+/* ---------- labels ---------- */
+
+.folio {
+  margin: 0 0 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- front matter ---------- */
+
+.block { padding: 14vh 0; }
+.epigraph { min-height: 100svh; align-content: center; }
+.epigraph blockquote { margin: 0; }
+.epigraph p {
+  margin: 0;
+  font-style: italic;
+  font-size: clamp(1.25rem, 2.2vw, 1.6rem);
+  line-height: 1.4;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+.epigraph footer {
+  margin-top: 1.25rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.contents h3 {
+  margin: 2.5rem 0 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+.contents ol, .creed ol { list-style: none; margin: 0; padding: 0; }
+.contents li a {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  align-items: baseline;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--rule);
+  text-decoration: none;
+  color: var(--ink);
+}
+.contents li:last-child a { border-bottom: 1px solid var(--rule); }
+.contents li a:hover .cname { text-decoration: underline; text-underline-offset: 0.2em; }
+.cnum { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.cname { font-family: var(--display); font-size: 1.05rem; }
+.cback { margin: 2.5rem 0 0; font-size: 0.9rem; color: var(--muted); }
+
+.creed li {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  align-items: baseline;
+  padding: 0.35rem 0;
+}
+.creed-line {
+  font-family: var(--display);
+  font-size: clamp(1rem, 1.7vw, 1.25rem);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+/* ---------- chapters ---------- */
+
+.chapter { padding: 16vh 0 12vh; }
+.opener { margin-bottom: clamp(2.25rem, 6vh, 3.75rem); }
+h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+  line-height: 1.12;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.dek {
+  margin: 1rem 0 0;
+  font-style: italic;
+  font-size: 1.1em;
+  color: var(--muted);
+}
+
+.chapter p { margin: 0; text-wrap: pretty; }
+/* the bold path: key lines that read as their own story */
+.chapter strong { font-weight: 600; color: var(--ink); }
+/* web convention: every paragraph flush left, with a gap between them */
+.chapter p + p { margin-top: 1em; }
+@media (min-width: 700px) {
+  .chapter p:not(.lead):not(.folio):not(.dek) { text-align: justify; hyphens: auto; }
+}
+
+.lead {
+  font-size: clamp(1.2rem, 1.9vw, 1.45rem);
+  line-height: 1.38;
+  color: var(--ink);
+  margin-bottom: 1.75rem !important;
+  text-wrap: pretty;
+}
+.chapter .lead + p { margin-top: 0; }
+.chapter p.headed { margin-top: 1.25em; }
+.chapter .lead + p.headed { margin-top: 0; }
+
+.chapter ol, .chapter ul { margin: 1.5rem 0; padding-left: 1.5em; }
+.chapter li { margin: 0.35rem 0; }
+.chapter li::marker { font-family: var(--mono); font-size: 0.8em; color: var(--muted); }
+
+/* pull quotes: the author's protected lines, larger, alone */
+.pull {
+  grid-column: main;
+  margin: clamp(2.5rem, 7vh, 4.25rem) 0;
+}
+.pull p {
+  font-family: var(--display);
+  font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+  line-height: 1.32;
+  color: var(--ink);
+  text-indent: 0 !important;
+  text-align: left !important;
+  text-wrap: balance;
+}
+.pull + p { margin-top: 0 !important; }
+
+/* ---------- plates ---------- */
+
+.plate {
+  grid-column: wide;
+  margin: clamp(2.5rem, 7vh, 4rem) 0;
+}
+.plate + p { margin-top: 0 !important; }
+.ph {
+  aspect-ratio: 3 / 2;
+  background: var(--ph);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.9rem;
+  padding: 2rem;
+  text-align: center;
+}
+.plate--diagram .ph { aspect-ratio: 16 / 10; }
+.ph-label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ph-ink);
+}
+.ph-brief {
+  max-width: 26em;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ph-ink);
+}
+figcaption {
+  margin-top: 0.75rem;
+  max-width: 30em;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* the grow-to-bleed plates: framed in the column, then full bleed */
+.plate--grow {
+  grid-column: full;
+  display: grid;
+  grid-template-columns: subgrid;
+}
+.plate--grow .ph { grid-column: full; aspect-ratio: auto; height: 78vh; height: 78svh; }
+.plate--grow figcaption { grid-column: main; }
+@media (max-width: 899px) { .plate--grow .ph { height: auto; aspect-ratio: 4 / 5; } }
+
+@media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .plate--grow .ph {
+      animation: bleed linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 95%;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plate--grow .ph { clip-path: inset(0 var(--r, 0px) 0 var(--l, 0px)); }
+}
+@keyframes bleed {
+  from { clip-path: inset(0 var(--r, 0px) 0 var(--l, 0px)); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+/* ---------- tables ---------- */
+
+.ledger {
+  grid-column: wide;
+  margin: 2.5rem 0;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+.ledger th, .ledger td { text-align: left; padding: 0.55rem 1rem 0.55rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.ledger th { font-family: var(--mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+/* ---------- notes ---------- */
+
+.fn { font-size: 0.62em; line-height: 0; margin-left: 0.08em; font-variant-numeric: lining-nums; }
+.fn a { text-decoration: none; color: var(--muted); font-family: var(--mono); }
+.fn a:hover { color: var(--tangerine); }
+
+.endnotes ol { margin: 0; padding-left: 2em; font-size: 0.85rem; line-height: 1.55; color: var(--muted); }
+.endnotes li { margin: 0 0 0.75rem; text-indent: 0 !important; }
+.endnotes li::marker { font-family: var(--mono); font-size: 0.85em; }
+.endnotes .back { text-decoration: none; margin-left: 0.25em; }
+.endnotes { padding-bottom: 8vh; }
+
+.colophon { padding: 8vh 0 20vh; text-align: center; }
+.colophon .opener { margin-bottom: 1.5rem; }
+.colophon p { font-size: 0.85rem; color: var(--muted); text-align: center !important; text-indent: 0 !important; max-width: 30em; margin: 0 auto; }
+
+:target { scroll-margin-top: 0; }
+
+/* ---------- running head ---------- */
+
+.runhead {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem var(--gutter);
+  background: var(--paper);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+}
+.runhead.is-on { transform: none; }
+@media (prefers-reduced-motion: reduce) { .runhead { transition: none; } }
+@media (min-width: 900px) { .runhead { padding: 0.9rem 2.5rem; } }
+.rh-folio { display: flex; align-items: center; gap: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seal { width: 7px; height: 7px; border-radius: 50%; background: var(--tangerine); flex: none; }
+.rh-title { position: absolute; left: 50%; transform: translateX(-50%); letter-spacing: 0.24em; white-space: nowrap; }
+@media (max-width: 899px) { .rh-title { display: none; } }
