@@ -178,6 +178,115 @@ a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.18e
 
 /* ---------- title hero ---------- */
 
+/* HERO_PHOTO: the Bliss hill in Sonoma, 2026, overcast and back to being a
+   vineyard, given a film grade. On wide screens the title is frosted glass:
+   each letter shows a blurred, brightened copy of the photo behind it
+   (img/bliss-hill-glass.jpg, lined up by background-attachment: fixed), with a
+   lit top edge. On phones it's set in paper white. The dek sits on a faint
+   dark haze, and the contents sit on a frosted glass plate. */
+.photo--hero {
+  background: var(--photo) url("img/bliss-hill-2400.jpg") center 30% / cover no-repeat;
+  place-items: start center;
+}
+/* the title group sits up in the sky, clear of the hill; the contents sit on the grass */
+.photo--hero .hero-inner { padding-top: 14vh; }
+/* the contents start just below the crest of the hill. With the photo set to
+   cover at 30%, the crest lands at about 12.75vw + 30vh on wide screens, so the
+   gap under the dek follows it */
+.photo--hero .leaders { margin-top: max(10vh, calc(12.75vw + 16vh - 200px)); }
+@media (max-width: 899px) {
+  .photo--hero .hero-inner { padding-top: 9vh; }
+  .photo--hero .leaders { margin-top: 16vh; }
+}
+@media (min-width: 900px) {
+  .photo--hero { background-attachment: fixed; }
+}
+@media (max-width: 899px) {
+  .photo--hero { background-position: 66% 30%; }
+}
+.photo--hero .dateline {
+  color: #F7F3EA;
+  filter: drop-shadow(0 1px 1px rgb(30 28 25 / 0.4)) drop-shadow(0 4px 14px rgb(30 28 25 / 0.45));
+}
+.photo--hero h1 {
+  color: #F7F3EA;
+  filter: drop-shadow(0 1px 1px rgb(30 28 25 / 0.35)) drop-shadow(0 8px 24px rgb(30 28 25 / 0.45));
+}
+@media (min-width: 900px) {
+  .photo--hero h1 {
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.55) 0%, rgb(255 255 255 / 0) 38%, rgb(255 255 255 / 0) 70%, rgb(255 255 255 / 0.18) 100%),
+      url("img/bliss-hill-glass.jpg") calc(50% + 6px) calc(30% - 14px) / 112% auto fixed;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 0.8px rgb(255 255 255 / 0.85);
+    filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.5)) drop-shadow(0 2px 2px rgb(30 28 25 / 0.25)) drop-shadow(0 10px 24px rgb(30 28 25 / 0.45));
+  }
+}
+.photo--hero .hero-dek {
+  position: relative;
+  color: #F7F3EA;
+  text-shadow: 0 1px 1px rgb(30 28 25 / 0.4), 0 4px 14px rgb(30 28 25 / 0.45);
+}
+.photo--hero .hero-dek::before {
+  content: "";
+  position: absolute;
+  inset: -90% -10%;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgb(30 28 25 / 0.42), rgb(30 28 25 / 0.2) 55%, rgb(30 28 25 / 0));
+  filter: blur(8px);
+  pointer-events: none;
+}
+/* the contents get the dek's treatment: paper white on a faint dark haze */
+.photo--hero .leaders {
+  position: relative;
+  color: #F7F3EA;
+  text-shadow: 0 1px 1px rgb(30 28 25 / 0.4), 0 4px 14px rgb(30 28 25 / 0.45);
+}
+/* leaders: a row of round paper-white points, with a shadow so they hold on grass */
+.photo--hero .leaders .dots {
+  height: 3px;
+  border: 0;
+  opacity: 1;
+  background: radial-gradient(circle, currentColor 1.1px, transparent 1.5px) left center / 7px 3px repeat-x;
+  filter: drop-shadow(0 1px 1px rgb(30 28 25 / 0.55));
+  transform: translateY(-0.28em);
+}
+.photo--hero .leaders .lnum { font-size: 0.82rem; font-weight: 500; }
+/* a soft frosted patch under the contents: the grass blurs most in the middle
+   and the blur fades out toward the edges (::before), with the dark haze on top (::after) */
+.photo--hero .leaders::before {
+  content: "";
+  position: absolute;
+  inset: -60% -40%;
+  z-index: -1;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  /* two soft patches, centered on the text and overlapping in the middle: a small
+     one on the column of numbers, a wider one on the section names. The box runs
+     from -40% to 140% of the list's width, so the numbers sit near 24% and the
+     names near 69%, with room for both to fade out before the box edge */
+  --blur-fade: #000 0%, rgb(0 0 0 / 0.8) 28%, rgb(0 0 0 / 0.45) 55%, rgb(0 0 0 / 0.15) 80%, transparent 100%;
+  -webkit-mask-image:
+    radial-gradient(ellipse 14% 45% at 24% 50%, var(--blur-fade)),
+    radial-gradient(ellipse 23% 46% at 69% 50%, var(--blur-fade));
+  mask-image:
+    radial-gradient(ellipse 14% 45% at 24% 50%, var(--blur-fade)),
+    radial-gradient(ellipse 23% 46% at 69% 50%, var(--blur-fade));
+  pointer-events: none;
+}
+/* the dark haze under the contents is off for now (Charles: try it without)
+.photo--hero .leaders::after {
+  content: "";
+  position: absolute;
+  inset: -24% -16%;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgb(30 28 25 / 0.52), rgb(30 28 25 / 0.28) 55%, rgb(30 28 25 / 0));
+  filter: blur(10px);
+  pointer-events: none;
+} */
+
 .hero-inner {
   position: relative;
   z-index: 1;
@@ -229,6 +338,121 @@ h1 {
 .dots { flex: 1; border-bottom: 1px dotted currentColor; opacity: 0.45; transform: translateY(-0.3em); }
 .leaders a:hover .lname, .leaders a:focus-visible .lname { text-decoration: underline; text-underline-offset: 0.2em; }
 
+/* ---------- the epigraph panel ----------
+   A frame of Boro the Caterpillar rises over the title banner, pins, and the paper
+   slides up over it. The panel is a pane of glass with Boro printed on it: its top
+   band (--ep-glass) is clear glass with the bent rim, frost, and a tint in Boro's
+   own top-edge colors that deepens to solid at the bottom of the band, where the
+   picture starts. The panel pins at minus the band, so once it's in place the band
+   is off the top and Boro fills the screen at his normal framing. Without glass
+   support, the top edge is a plain feather. The Miyazaki line sits below Boro. */
+.photo--epigraph {
+  z-index: 1;
+  background: none;
+  place-items: end center;
+  height: calc(100svh + var(--ep-glass, 0px));
+  top: calc(-1 * var(--ep-glass, 0px));
+}
+.photo--epigraph::after { display: none; }
+.epigraph-img {
+  position: absolute;
+  inset: 0;
+  /* Boro sized to cover the screen he fills once pinned, anchored at the bottom.
+     The file has a mirrored, blurred continuation of his top edge above the frame
+     (boro-epigraph-ext.jpg), so the picture runs up under the glass with no seam;
+     the width is the same as the plain frame's, so his framing doesn't change. */
+  background: url("img/boro-epigraph-ext.jpg") center bottom / max(100vw, calc(100svh * 1.858)) auto no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12vh);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12vh);
+}
+.epigraph-tint { display: none; }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (prefers-reduced-transparency: no-preference) and (prefers-reduced-motion: no-preference) {
+    .photo--epigraph { --ep-glass: var(--glass); }
+    .photo--epigraph .epigraph-img {
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 2.5rem, rgb(0 0 0 / 0.45) calc(var(--ep-glass) * 0.5), #000 calc(var(--ep-glass) * 0.9));
+      mask-image: linear-gradient(to bottom, transparent 0, transparent 2.5rem, rgb(0 0 0 / 0.45) calc(var(--ep-glass) * 0.5), #000 calc(var(--ep-glass) * 0.9));
+    }
+    /* the tint: Boro's top-edge colors left to right, a light wash through the
+       middle of the band that clears at the rim and fades out into the picture */
+    .epigraph-tint {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: calc(var(--ep-glass) + 2px);
+      background: linear-gradient(90deg, rgb(24 91 82), rgb(30 110 101) 50%, rgb(65 169 181));
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.18) 3.5rem, rgb(0 0 0 / 0.3) 50%, transparent 100%);
+      mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.18) 3.5rem, rgb(0 0 0 / 0.3) 50%, transparent 100%);
+      pointer-events: none;
+    }
+    /* the rim: a highlight everywhere, plus the bevel lens in Chromium */
+    .photo--epigraph::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--ep-glass);
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgb(255 255 255 / 0.75) 0, rgb(255 255 255 / 0.22) 2px, rgb(255 255 255 / 0.08) 1.25rem, transparent 3.5rem);
+    }
+    .has-liquid .photo--epigraph::before {
+      backdrop-filter: url(#glass-bevel) saturate(1.08) brightness(1.03);
+    }
+    /* the frost: the hill behind blurs more toward the bottom of the band */
+    .photo--epigraph::after {
+      display: block;
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: var(--ep-glass);
+      z-index: -1;
+      opacity: 1;
+      mix-blend-mode: normal;
+      background: none;
+      -webkit-backdrop-filter: blur(16px) saturate(1.05);
+      backdrop-filter: blur(16px) saturate(1.05);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 4rem, #000 60%);
+      mask-image: linear-gradient(to bottom, transparent 4rem, #000 60%);
+      pointer-events: none;
+    }
+  }
+}
+.epigraph-quote {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 0 var(--gutter) 11vh;
+  max-width: 40rem;
+  text-align: center;
+  color: #F7F3EA;
+}
+.epigraph-quote::before {
+  content: "";
+  position: absolute;
+  inset: -35% -12% 4vh;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgb(30 28 25 / 0.45), rgb(30 28 25 / 0.22) 55%, rgb(30 28 25 / 0));
+  filter: blur(10px);
+  pointer-events: none;
+}
+.epigraph-quote p {
+  margin: 0;
+  font-style: italic;
+  font-size: clamp(1.25rem, 2.2vw, 1.6rem);
+  line-height: 1.4;
+  text-wrap: pretty;
+  text-shadow: 0 1px 1px rgb(30 28 25 / 0.45), 0 4px 16px rgb(30 28 25 / 0.5);
+}
+.epigraph-quote footer {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  text-shadow: 0 1px 1px rgb(30 28 25 / 0.45), 0 4px 14px rgb(30 28 25 / 0.5);
+}
+
 /* ---------- part openers ---------- */
 
 .part-inner { position: relative; z-index: 1; text-align: center; padding: 0 var(--gutter); }
@@ -237,6 +461,148 @@ h1 {
   font-family: var(--display);
   font-size: clamp(2.6rem, 7.5vw, 6.25rem);
   line-height: 1.05;
+}
+
+/* a Part opener with its real photo: the photo fills the panel and the title sits on it in paper white */
+.photo--real {
+  background: #1a2230 var(--part-img) center 65% / cover no-repeat;
+  color: var(--paper);
+}
+.photo--real .dateline, .photo--real .part-name { color: var(--paper); }
+.photo--real .part-inner { text-shadow: 0 1px 2px rgb(10 14 20 / 0.45), 0 6px 28px rgb(10 14 20 / 0.45); }
+/* The Dalles cooling towers: keep the building low so the title sits on the steam and hillside */
+#part-2.photo--real { background-position: center 70%; }
+@media (max-width: 899px) { #part-2.photo--real { background-position: 74% 70%; } }
+/* The Wild Robot: Roz on the left reaching toward the title; on phones she stays in frame under it */
+#part-3.photo--real { background-position: 74% center; }
+@media (max-width: 899px) { #part-3.photo--real { background-position: 37% center; } }
+/* a soft blur behind the Part Three words, like the contents on the title page.
+   Each line gets its own patch that hugs the letters: full blur over the words,
+   fading out on every side (two soft linear fades, intersected) */
+#part-3 .dateline, #part-3 .part-name { position: relative; width: fit-content; margin-inline: auto; }
+#part-3 .dateline::before, #part-3 .part-name::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  --fx: 0.25em;
+  --fy: 0.18em;
+  inset: calc(var(--fy) * -1) calc(var(--fx) * -1);
+  --edge-x: linear-gradient(to right, transparent, rgb(0 0 0 / 0.4) calc(var(--fx) * 0.45), #000 var(--fx), #000 calc(100% - var(--fx)), rgb(0 0 0 / 0.4) calc(100% - var(--fx) * 0.45), transparent);
+  --edge-y: linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.4) calc(var(--fy) * 0.45), #000 var(--fy), #000 calc(100% - var(--fy)), rgb(0 0 0 / 0.4) calc(100% - var(--fy) * 0.45), transparent);
+  -webkit-mask-image: var(--edge-x), var(--edge-y);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--edge-x), var(--edge-y);
+  mask-composite: intersect;
+  pointer-events: none;
+}
+/* the label is tiny, so its fade runs further in em */
+#part-3 .dateline::before { --fx: 2.2em; --fy: 1.6em; }
+/* the title hugs its letters: the box is trimmed to the letters' height (the line
+   box has extra room above and below them) and the fade is short */
+#part-3 .part-name::before { --fx: 0.12em; --fy: 0.1em; inset: 0.06em -0.1em 0.12em; }
+/* Big Hero 6: the title sits on the dark garage wall between Hiro and Baymax;
+   on phones the crop keeps Hiro's finger on Baymax's belly */
+#part-4.photo--real { background-position: center 40%; }
+@media (max-width: 899px) { #part-4.photo--real { background-position: 52% center; } }
+/* Part Four sets its title off center, top left, in the dark garage above Hiro's desk */
+#part-4.photo--real { place-items: start; }
+#part-4 .part-inner { text-align: left; padding: clamp(5rem, 13vh, 9rem) var(--gutter) 0 clamp(1.5rem, 7vw, 7rem); }
+
+/* Part Five: one frame of film. Doug Menuez's photo of the NetObjects pep talk (1998)
+   sits in a black rebate with tangerine edge printing; the title is set in the strip
+   below the frame instead of on the photo, since the room is full from edge to edge.
+   The edge printing, the frame and the title all share the frame's width. */
+.photo--film {
+  --fw: min(100vw - 2 * clamp(0.75rem, 3vw, 3rem), 68svh * 1.4358);
+  background: #0c0c0b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.photo--film > * { width: var(--fw); }
+.photo--film::after { opacity: 0.1; }
+.photo--film .film-frame { aspect-ratio: 2000 / 1393; border-radius: 6px; overflow: hidden; }
+.photo--film .film-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.photo--film .rebate {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.65rem 0.2rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: #E0763A;
+}
+.photo--film .rebate--foot { padding-top: 1.2rem; }
+.photo--film .part-inner { text-align: left; padding: 0; }
+.photo--film .dateline { color: #d8cbb8; margin: 0 0 0.6rem; }
+.photo--film .part-name { color: var(--paper); font-size: clamp(2.2rem, 6vw, 5rem); }
+@media (max-width: 899px) {
+  .photo--film { --fw: calc(100vw - 1.5rem); }
+  .photo--film .film-frame { aspect-ratio: auto; height: 52svh; }
+  .photo--film .film-frame img { object-position: 42% center; }
+  .photo--film .rebate--top span:first-child { font-size: 0.56rem; }
+}
+
+/* ---------- Part One: into the screen ----------
+   A miniature Dell running Bliss (img/part1-mini-pc.jpg, 1600x1100; the screen is
+   x 630-1015, y 306-632). site.js places .zoom-screen over the photo's screen and
+   scales .zoom-layer toward it as you scroll through .zoom-spacer, so the words
+   on the screen grow with it. Then the paper slides over as usual. */
+.photo--zoom { background: #0d0d0c; display: block; }
+.photo--zoom::after { opacity: 0.12; }
+.zoom-layer {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.zoom-img {
+  position: absolute;
+  inset: 0;
+  background: url("img/part1-mini-pc.jpg") center / cover no-repeat;
+}
+.zoom-screen {
+  position: absolute;
+  container-type: size;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: #FBF8F1;
+  overflow: hidden;
+}
+/* the CRT: faint scanlines and a glow at the edges of the glass */
+.zoom-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.28));
+}
+.zoom-screen .dateline {
+  margin: 0 0 3cqh;
+  font-size: max(6px, 4.2cqw);
+  color: #FBF8F1;
+  text-shadow: 0 0 6px rgb(255 255 255 / 0.5), 0 1px 2px rgb(0 0 0 / 0.5);
+}
+.zoom-screen .part-name {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 24cqw;
+  line-height: 1;
+  color: #FBF8F1;
+  text-shadow: 0 0 14px rgb(255 255 255 / 0.45), 0 2px 6px rgb(0 0 0 / 0.45);
+}
+.zoom-spacer { height: 90vh; }
+@media (prefers-reduced-motion: reduce) {
+  .zoom-spacer { height: 0; }
 }
 
 /* ---------- the grid ---------- */
@@ -424,7 +790,8 @@ h2 {
 }
 figcaption {
   margin-top: 0.75rem;
-  max-width: 30em;
+  max-width: 44em;
+  text-wrap: balance;
   font-size: 0.78rem;
   line-height: 1.5;
   color: var(--muted);
@@ -451,6 +818,94 @@ figcaption {
 }
 @media (prefers-reduced-motion: reduce) {
   .plate--grow .ph { clip-path: inset(0 var(--r, 0px) 0 var(--l, 0px)); }
+}
+/* a YouTube video (.plate--youtube) in theatre mode: a black band across the whole
+   page, exactly as tall as the video, with the video centered on it */
+.plate--youtube { grid-column: full; display: grid; grid-template-columns: subgrid; }
+.plate--youtube .theatre { grid-column: full; display: grid; grid-template-columns: subgrid; background: #000; }
+.plate--youtube iframe {
+  grid-column: wide;
+  justify-self: center;
+  display: block;
+  width: min(100%, calc(86svh * var(--photo-ratio)));
+  aspect-ratio: var(--photo-ratio);
+  height: auto;
+  border: 0;
+}
+.plate--youtube figcaption { grid-column: wide; margin-left: calc((100% - min(100%, 86svh * var(--photo-ratio))) / 2); }
+@media (max-width: 899px) { .plate--youtube iframe { grid-column: full; width: 100%; } }
+
+/* a silent clip (.plate--video) in the photo frame */
+.plate--video video.ph { display: block; height: auto; object-fit: cover; background: #1a2230; }
+
+/* a live embed (.plate--embed): the playable iPod, floating on the paper */
+.plate--embed iframe {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: 700px;
+  margin: 0 auto;
+  border: 0;
+  background: transparent;
+  color-scheme: light;
+}
+.plate--embed figcaption { max-width: 34em; margin-inline: auto; text-align: center; }
+
+/* a photo plate (.plate--photo): the photo fills the plate's frame */
+.plate--photo .ph { background: var(--ph) var(--photo) center / cover no-repeat; }
+/* a framed photo plate keeps the whole photo: the column sets the width, the photo sets the height */
+.plate--photo:not(.plate--grow) .ph { aspect-ratio: var(--photo-ratio, 3 / 2); padding: 0; }
+/* a tall photo never runs past the screen: it gets as wide as fits in most of the
+   screen's height, centered, and its caption starts at the photo's left edge */
+.plate--photo:not(.plate--grow) .ph { width: min(100%, calc(86svh * var(--photo-ratio, 1.5))); margin-inline: auto; }
+.plate--photo:not(.plate--grow) figcaption { margin-left: calc((100% - min(100%, 86svh * var(--photo-ratio, 1.5))) / 2); }
+
+/* a screenshot plate (.plate--shot): the screenshot at its own size on a black
+   band exactly its height, with its light bleeding out tinted XP desktop blue.
+   The band grows from the screenshot's edges to full width; the screenshot never
+   moves or scales. */
+.plate--shot .ph {
+  --shot-h: min(var(--shot-max), 70vh, calc(100vw / var(--shot-ratio)));
+  --shot-w: calc(var(--shot-h) * var(--shot-ratio));
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: auto;
+  height: var(--shot-h);
+  padding: 0;
+  background: #0b0b0a;
+}
+@media (max-width: 899px) { .plate--shot .ph { height: var(--shot-h); aspect-ratio: auto; } }
+.plate--shot .ph::before {
+  content: "";
+  position: absolute;
+  inset: -20% -5%;
+  background:
+    radial-gradient(ellipse 60% 100% at center, rgb(58 110 230 / 0.8), rgb(0 78 152 / 0.75) 60%, rgb(0 60 130 / 0.7)),
+    var(--shot) center / calc(var(--shot-w) * 2.4) 140% no-repeat;
+  background-blend-mode: color;
+  filter: blur(46px) saturate(2.6) brightness(1.05);
+  opacity: 0.95;
+  -webkit-mask-image: radial-gradient(ellipse 52% 90% at center, #000 35%, rgb(0 0 0 / 0.45) 62%, transparent 92%);
+  mask-image: radial-gradient(ellipse 52% 90% at center, #000 35%, rgb(0 0 0 / 0.45) 62%, transparent 92%);
+  pointer-events: none;
+}
+.plate--shot .ph::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--shot) center / auto var(--shot-h) no-repeat;
+}
+@media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .plate--shot .ph { animation-name: bandgrow; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plate--shot .ph { clip-path: none; }
+}
+@keyframes bandgrow {
+  from { clip-path: inset(0 calc(50% - var(--shot-w) / 2)); }
+  to   { clip-path: inset(0 0 0 0); }
 }
 @keyframes bleed {
   from { clip-path: inset(0 var(--r, 0px) 0 var(--l, 0px)); }

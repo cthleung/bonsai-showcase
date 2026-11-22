@@ -1,0 +1,2 @@
+# Jekyll skips folders that start with "_"; the playable iPod (manifesto No. 10) needs its _next folder
+include: ["_next"]

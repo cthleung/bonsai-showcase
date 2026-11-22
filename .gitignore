@@ -14,3 +14,4 @@ desktop.ini
 queries.jsonl
 .venv/
 !docs/manifesto/index.html
+!docs/manifesto/ipod/**/*.html
