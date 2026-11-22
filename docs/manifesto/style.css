@@ -700,6 +700,20 @@ h1 {
 /* ---------- chapters ---------- */
 
 .chapter { padding: 16vh 0 12vh; }
+/* a faded rule between chapters: as wide as the text column, solid through the
+   middle and fading into the paper over the last 30% at each end */
+.chapter + .chapter { position: relative; }
+.chapter + .chapter::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(var(--measure), 100% - 2 * var(--gutter));
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgb(30 28 25 / 0.28) 30%, rgb(30 28 25 / 0.28) 70%, transparent);
+  pointer-events: none;
+}
 .opener { margin-bottom: clamp(2.25rem, 6vh, 3.75rem); }
 h2 {
   margin: 0;
