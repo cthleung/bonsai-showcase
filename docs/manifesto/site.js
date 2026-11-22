@@ -48,7 +48,41 @@
 
   // the running head shows whichever paper block sits under the bottom edge of the screen
   let ticking = false;
+  // Part One: place the words on the miniature monitor's screen and push into it
+  const zoom = document.querySelector(".photo--zoom");
+  const zLayer = zoom && zoom.querySelector(".zoom-layer");
+  const zScreen = zoom && zoom.querySelector(".zoom-screen");
+  const zSpacer = document.querySelector(".zoom-spacer");
+  const IMG = { w: 1600, h: 1100, sx: 630, sy: 306, sw: 385, sh: 326 };
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  const updateZoom = () => {
+    if (!zoom) return;
+    const W = zoom.clientWidth, H = zoom.clientHeight;
+    const c = Math.max(W / IMG.w, H / IMG.h);
+    const ox = (W - IMG.w * c) / 2, oy = (H - IMG.h * c) / 2;
+    const x = ox + IMG.sx * c, y = oy + IMG.sy * c, w = IMG.sw * c, h = IMG.sh * c;
+    Object.assign(zScreen.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+    zLayer.style.transformOrigin = `${x + w / 2}px ${y + h / 2}px`;
+    if (still.matches) { zLayer.style.transform = ""; return; }
+    const start = zoom.parentElement.getBoundingClientRect().top;
+    const run = zSpacer ? zSpacer.offsetHeight : H;
+    const t = Math.min(1, Math.max(0, -start / run));
+    const ease = t * t * (3 - 2 * t);
+    const target = Math.min(2.4, Math.max(1.25, (0.62 * W) / w));
+    zLayer.style.transform = `scale(${1 + (target - 1) * ease})`;
+  };
+  addEventListener("resize", updateZoom);
+  // clips play only while they're on screen, and stay on their poster for reduced motion
+  const clips = document.querySelectorAll(".plate--video video");
+  if (clips.length && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver((es) => es.forEach((e) => {
+      if (e.isIntersecting && !still.matches) e.target.play().catch(() => {});
+      else e.target.pause();
+    }), { threshold: 0.35 });
+    clips.forEach((v) => io.observe(v));
+  }
   const updateHead = () => {
+    updateZoom();
     ticking = false;
     const line = innerHeight - 24;
     const current = blocks.filter((b) => {
